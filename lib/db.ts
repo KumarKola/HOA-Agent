@@ -1,0 +1,74 @@
+// One tiny query helper. Production uses Postgres (Supabase) through DATABASE_URL.
+// Local development with no DATABASE_URL uses an embedded Postgres (PGlite) stored in ./.data.
+
+type Row = Record<string, any>;
+type Db = { query: <T extends Row = Row>(text: string, params?: unknown[]) => Promise<{ rows: T[] }> };
+
+const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS incidents (
+     id SERIAL PRIMARY KEY,
+     entrance TEXT NOT NULL,
+     gate TEXT NOT NULL,
+     issue TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'open',
+     source TEXT NOT NULL DEFAULT 'resident',
+     confirmations INTEGER NOT NULL DEFAULT 1,
+     citycync_ticket TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+     last_report_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+     escalated_at TIMESTAMPTZ,
+     resolved_at TIMESTAMPTZ,
+     resolution TEXT
+   )`,
+  `CREATE INDEX IF NOT EXISTS incidents_open_idx ON incidents (status, entrance, gate, issue)`,
+  `CREATE TABLE IF NOT EXISTS reports (
+     id SERIAL PRIMARY KEY,
+     incident_id INTEGER NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+     kind TEXT NOT NULL DEFAULT 'report',
+     note TEXT,
+     reporter_name TEXT,
+     reporter_lot TEXT,
+     ip_hash TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS reports_ip_idx ON reports (ip_hash, created_at)`,
+];
+
+const g = globalThis as unknown as { __libertyDb?: Promise<Db> };
+
+async function connect(): Promise<Db> {
+  let db: Db;
+  if (process.env.DATABASE_URL) {
+    const { Pool } = await import('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.PGSSL === 'false' ? false : { rejectUnauthorized: false },
+      max: 3,
+    });
+    db = { query: (text, params) => pool.query(text, params as any[]) as any };
+  } else {
+    const { PGlite } = await import('@electric-sql/pglite');
+    const { mkdirSync } = await import('fs');
+    const dir = process.env.PGLITE_DIR || './.data/pglite';
+    mkdirSync(dir, { recursive: true });
+    const lite = new PGlite(dir);
+    db = { query: (text, params) => lite.query(text, params as any[]) as any };
+  }
+  for (const stmt of SCHEMA) await db.query(stmt);
+  return db;
+}
+
+export function getDb(): Promise<Db> {
+  if (!g.__libertyDb) {
+    g.__libertyDb = connect().catch((e) => {
+      g.__libertyDb = undefined; // retry on the next request instead of caching the failure
+      throw e;
+    });
+  }
+  return g.__libertyDb;
+}
+
+export async function q<T extends Row = Row>(text: string, params: unknown[] = []): Promise<T[]> {
+  const db = await getDb();
+  return (await db.query<T>(text, params)).rows;
+}
