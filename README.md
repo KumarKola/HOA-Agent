@@ -41,7 +41,7 @@ With no `DATABASE_URL`, an embedded Postgres (PGlite) is stored in `./.data`. Wi
 
 ## Deploy (free tiers)
 
-1. **Database:** create a Supabase project. Copy *Project Settings → Database → Connection string → Transaction pooler* into `DATABASE_URL`. Tables are created automatically on first request.
+1. **Database:** in the Vercel project, open *Storage* and add a Postgres database (Neon or Supabase from the Vercel Marketplace). Vercel adds the connection string to the project for you as `DATABASE_URL` or `POSTGRES_URL`; the app reads either. Tables are created automatically on first request.
 2. **Email:** create a Resend account, verify a sending domain (or use `onboarding@resend.dev` for testing), and set `RESEND_API_KEY` and `EMAIL_FROM`.
 3. **Hosting:** import the repo in Vercel and add every variable from `.env.example`. `vercel.json` schedules the escalation job daily at 8:00 am Arizona time and the monthly summary on the 1st.
 4. Set `SITE_URL` to the deployed address, and pin the link in the neighborhood WhatsApp group.

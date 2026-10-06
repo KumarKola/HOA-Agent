@@ -1,5 +1,5 @@
-// One tiny query helper. Production uses Postgres (Supabase) through DATABASE_URL.
-// Local development with no DATABASE_URL uses an embedded Postgres (PGlite) stored in ./.data.
+// One tiny query helper. Production uses Postgres through DATABASE_URL (or POSTGRES_URL, which
+// Vercel's Supabase integration sets). Local development with neither uses an embedded Postgres (PGlite) stored in ./.data.
 
 type Row = Record<string, any>;
 type Db = { query: <T extends Row = Row>(text: string, params?: unknown[]) => Promise<{ rows: T[] }> };
@@ -38,10 +38,11 @@ const g = globalThis as unknown as { __libertyDb?: Promise<Db> };
 
 async function connect(): Promise<Db> {
   let db: Db;
-  if (process.env.DATABASE_URL) {
+  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (url) {
     const { Pool } = await import('pg');
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: url,
       ssl: process.env.PGSSL === 'false' ? false : { rejectUnauthorized: false },
       max: 3,
     });
