@@ -1,10 +1,13 @@
 import ReportFlow, { type OpenItem } from './ReportFlow';
+import SetupNotice from './SetupNotice';
+import { dbConfigured } from '@/lib/db';
 import { getOpenIncidents } from '@/lib/incidents';
 import { age } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
+  if (!dbConfigured()) return <SetupNotice />;
   const open: OpenItem[] = (await getOpenIncidents()).map((i) => ({
     id: i.id,
     entrance: i.entrance,

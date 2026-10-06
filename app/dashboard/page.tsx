@@ -1,4 +1,6 @@
 import { ENTRANCES, incidentTitle, gateLabel, issueLabel } from '@/lib/gates';
+import SetupNotice from '../SetupNotice';
+import { dbConfigured } from '@/lib/db';
 import { getAvgFixHours, getEntranceStats, getOpenIncidents, getRecentClosed, RED_AFTER_DAYS, type Incident } from '@/lib/incidents';
 import { age, hoursSince, phx } from '@/lib/util';
 
@@ -32,6 +34,7 @@ function OpenRow({ i }: { i: Incident }) {
 }
 
 export default async function Dashboard() {
+  if (!dbConfigured()) return <SetupNotice />;
   const [open, stats, closed, avgFix] = await Promise.all([getOpenIncidents(), getEntranceStats(), getRecentClosed(12), getAvgFixHours()]);
   const byEnt = Object.fromEntries(stats.map((s) => [s.entrance, s]));
   const thisMonth = stats.reduce((a, s) => a + s.this_month, 0);

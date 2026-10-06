@@ -36,9 +36,15 @@ const SCHEMA = [
 
 const g = globalThis as unknown as { __libertyDb?: Promise<Db> };
 
+/** False on a hosted deploy (Vercel) with no database connected yet. */
+export const dbConfigured = () => !!(process.env.DATABASE_URL || process.env.POSTGRES_URL) || !process.env.VERCEL;
+
 async function connect(): Promise<Db> {
   let db: Db;
   const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!url && process.env.VERCEL) {
+    throw new Error('No database connected. Add a Postgres database under Storage in the Vercel project.');
+  }
   if (url) {
     const { Pool } = await import('pg');
     const pool = new Pool({

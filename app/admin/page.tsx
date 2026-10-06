@@ -1,4 +1,6 @@
 import { cookies } from 'next/headers';
+import SetupNotice from '../SetupNotice';
+import { dbConfigured } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { incidentTitle } from '@/lib/gates';
@@ -49,6 +51,7 @@ async function close(form: FormData) {
 }
 
 export default async function Admin({ searchParams }: { searchParams: Promise<{ wrong?: string }> }) {
+  if (!dbConfigured()) return <SetupNotice />;
   const sp = await searchParams;
   if (!(await isAuthed())) {
     return (
