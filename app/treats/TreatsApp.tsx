@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import TreatMap, { type MapHouse } from './TreatMap';
 import { geoToMap, STREETS } from '@/lib/treatsGeo';
 import { lotAt } from '@/lib/treatsLots';
+import { streetAt } from '@/lib/treatsStreets';
 
 const snap = (x: number, y: number) => {
   const l = lotAt(x, y);
@@ -32,6 +33,7 @@ export default function TreatsApp({
   const [tracking, setTracking] = useState(false);
   const [gpsMsg, setGpsMsg] = useState('');
   const watchId = useRef<number | null>(null);
+  const lastFix = useRef<{ lat: number; lng: number } | null>(null);
 
   const [adding, setAdding] = useState(false);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
@@ -81,6 +83,33 @@ export default function TreatsApp({
     return !!(a.number || a.street);
   }
 
+  // Street the page filled in itself; replaced on the next placement unless the volunteer typed their own.
+  const autoStreet = useRef('');
+
+  /** Puts the candy on the lot at a point, suggests the street from the map, and (with Google) the full address. */
+  function placeAt(xPct: number, yPct: number, fix?: { lat: number; lng: number } | null) {
+    const pt = snap(xPct, yPct);
+    setPending(pt);
+    setZoom((z) => Math.max(z, 2));
+    setErr('');
+    setStreet((cur) => {
+      if (cur && cur !== autoStreet.current) return cur; // keep what they typed
+      const st = streetAt(pt.x, pt.y);
+      autoStreet.current = st;
+      setLookupMsg('Street filled from the map. Change it if it is wrong.');
+      return st;
+    });
+    if (fix && addressLookup) {
+      fetch(`/api/geo/reverse?lat=${fix.lat}&lng=${fix.lng}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.address?.street) autoStreet.current = d.address.street;
+          if (fillAddress(d.address)) setLookupMsg('Address filled from your location. Fix it if it shows a neighbor’s number.');
+        })
+        .catch(() => {});
+    }
+  }
+
   async function pickSuggestion(sug: { id: string; main: string }) {
     setSuggestions([]);
     picked.current = sug.main;
@@ -94,6 +123,7 @@ export default function TreatsApp({
       if (typeof d.lat === 'number' && typeof d.lng === 'number') {
         const m = geoToMap(d.lat, d.lng);
         if (m) {
+          if (d.street) autoStreet.current = d.street;
           setPending(snap(m.x, m.y));
           setZoom((z) => Math.max(z, 2));
           setLookupMsg('Candy placed at that address. Check it is on your house, or tap the right lot.');
@@ -149,6 +179,7 @@ export default function TreatsApp({
           setYou(null);
           setGpsMsg('You are outside the community map.');
         } else {
+          lastFix.current = { lat: p.coords.latitude, lng: p.coords.longitude };
           setYou(m);
           setGpsMsg(p.coords.accuracy > 40 ? 'Location is rough right now; it sharpens outdoors.' : '');
         }
@@ -166,6 +197,8 @@ export default function TreatsApp({
     setDone(null);
     setErr('');
     setSelected(null);
+    // Location already showing from "Show where I am": put the candy there right away.
+    if (you) placeAt(you.x, you.y, lastFix.current);
     setTimeout(() => mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }
 
@@ -176,17 +209,7 @@ export default function TreatsApp({
       (p) => {
         const m = geoToMap(p.coords.latitude, p.coords.longitude);
         if (!m) return setErr('Your location is outside the community. Tap your house on the map instead.');
-        setPending(snap(m.x, m.y));
-        setZoom((z) => Math.max(z, 2));
-        setErr('');
-        if (addressLookup) {
-          fetch(`/api/geo/reverse?lat=${p.coords.latitude}&lng=${p.coords.longitude}`)
-            .then((r) => r.json())
-            .then((d) => {
-              if (fillAddress(d.address)) setLookupMsg('Address filled from your location. Fix it if it shows a neighbor’s number.');
-            })
-            .catch(() => {});
-        }
+        placeAt(m.x, m.y, { lat: p.coords.latitude, lng: p.coords.longitude });
       },
       (e) => setErr(e.code === e.PERMISSION_DENIED ? 'Location is blocked. Tap your house on the map instead.' : 'Could not get your location. Tap your house on the map instead.'),
       { enableHighAccuracy: true, timeout: 20000 },
@@ -292,7 +315,7 @@ export default function TreatsApp({
           you={you}
           selectedId={selected}
           onTap={(x, y) => {
-            setPending(snap(x, y));
+            placeAt(x, y);
             setErr('');
             if (zoom === 1) setZoom(2);
           }}
@@ -351,7 +374,6 @@ export default function TreatsApp({
                   ))}
                 </ul>
               )}
-              {lookupMsg && <p className="ttSmall ttMuted">{lookupMsg}</p>}
             </div>
           )}
           <div className="ttGrid2">
@@ -361,7 +383,7 @@ export default function TreatsApp({
             </label>
             <label className="ttField" htmlFor="tt-street">
               Street
-              <input id="tt-street" list="tt-streets" maxLength={40} value={street} onChange={(e) => setStreet(e.target.value)} placeholder="S 23rd Dr" />
+              <input id="tt-street" list="tt-streets" maxLength={40} value={street} onChange={(e) => { autoStreet.current = ''; setStreet(e.target.value); }} placeholder="S 23rd Dr" />
               <datalist id="tt-streets">
                 {STREETS.map((s) => (
                   <option key={s} value={s} />
@@ -369,6 +391,7 @@ export default function TreatsApp({
               </datalist>
             </label>
           </div>
+          {lookupMsg && <p className="ttSmall ttMuted">{lookupMsg}</p>}
           <label className="ttField" htmlFor="tt-note">
             Note for families (optional)
             <input id="tt-note" maxLength={120} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nut-free treats, 5:30–8 pm" />
