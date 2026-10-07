@@ -1,0 +1,92 @@
+/* Trick-or-treat map: one deliberate Halloween-night look (single theme), matching the flyer's candy purple. */
+.tt {
+  --tt-bg: #17141f;
+  --tt-panel: #221d2e;
+  --tt-line: #3a3149;
+  --tt-ink: #f4ede3;
+  --tt-muted: #b7aec4;
+  --tt-candy: #b77ad6;
+  --tt-pumpkin: #f2923a;
+  --tt-pumpkin-ink: #1d1206;
+  --tt-you: #4aa8ff;
+  --tt-good: #6fd39b;
+  --tt-bad: #ff8f86;
+  background: var(--tt-bg);
+  color: var(--tt-ink);
+  min-height: 100vh;
+  color-scheme: dark;
+}
+.tt .ttWrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 56px; display: grid; gap: 16px; }
+.tt h1 { font: 700 clamp(30px, 7vw, 44px)/1 var(--display); margin: 0; letter-spacing: .01em; }
+.tt h1 small { display: block; font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--tt-pumpkin); margin-bottom: 6px; }
+.tt h2 { font: 700 22px/1.15 var(--display); margin: 0; letter-spacing: .01em; }
+.tt p { margin: 0; }
+.tt .ttMuted { color: var(--tt-muted); }
+.tt .ttSmall { font-size: 14px; }
+.tt .ttCount { font-variant-numeric: tabular-nums; }
+.tt .ttCount b { color: var(--tt-candy); font-size: 1.15em; }
+
+.tt .ttCard { background: var(--tt-panel); border: 1px solid var(--tt-line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 12px; }
+.tt .ttRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tt .ttSpread { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+
+.tt .ttBtn {
+  appearance: none; border: 0; border-radius: 8px; cursor: pointer;
+  background: var(--tt-pumpkin); color: var(--tt-pumpkin-ink);
+  font: 700 16px/1 var(--body); padding: 13px 16px; min-height: 48px;
+}
+.tt .ttBtn:disabled { opacity: .6; cursor: default; }
+.tt .ttBtn.ghost { background: transparent; color: var(--tt-ink); border: 1px solid var(--tt-line); }
+.tt .ttBtn.small { min-height: 40px; padding: 9px 12px; font-size: 14px; }
+.tt .ttBtn.on { border-color: var(--tt-you); color: var(--tt-you); }
+.tt .ttBtn:focus-visible, .tt input:focus-visible { outline: 3px solid var(--tt-candy); outline-offset: 2px; }
+.tt .ttBtn.full { width: 100%; }
+
+.tt .ttMapScroll {
+  border-radius: 10px; border: 1px solid var(--tt-line); overflow: auto; max-height: 78vh;
+  -webkit-overflow-scrolling: touch; background: #2b2836; touch-action: pan-x pan-y pinch-zoom;
+}
+.tt .ttMapInner { position: relative; }
+.tt .ttMapInner img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.tt .ttMapInner.placing { cursor: crosshair; }
+.tt .ttMarker {
+  position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; padding: 0; border: 0;
+  background: none; cursor: pointer; line-height: 0;
+}
+.tt .ttMarker svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+.tt .ttMarker.sel svg { transform: scale(1.35); }
+.tt .ttMarker.dim { opacity: .45; }
+.tt .ttPending { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; pointer-events: none; }
+.tt .ttPending::before {
+  content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 3px solid var(--tt-pumpkin);
+  animation: ttPulse 1.4s ease-out infinite;
+}
+.tt .ttYou { position: absolute; transform: translate(-50%, -50%); width: 16px; height: 16px; border-radius: 50%; background: var(--tt-you); border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(74,168,255,.25); pointer-events: none; }
+@keyframes ttPulse { from { transform: scale(.7); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tt .ttPending::before { animation: none; } }
+
+.tt .ttHint { border-left: 3px solid var(--tt-pumpkin); padding: 6px 10px; background: rgba(242,146,58,.08); border-radius: 0 6px 6px 0; font-size: 15px; }
+.tt .ttErr { color: var(--tt-bad); font-size: 14px; font-weight: 600; }
+.tt .ttOk { color: var(--tt-good); font-weight: 600; }
+
+.tt label.ttField { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+.tt input {
+  font: 16px/1.4 var(--body); color: var(--tt-ink); background: #17141f; border: 1px solid var(--tt-line);
+  border-radius: 8px; padding: 10px 12px; width: 100%;
+}
+.tt .ttGrid2 { display: grid; gap: 10px; grid-template-columns: minmax(90px, 1fr) 2fr; }
+
+.tt .ttList { display: grid; gap: 14px; }
+.tt .ttStreet h3 { font: 600 13px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--tt-muted); margin: 0 0 6px; }
+.tt .ttStreet ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tt .ttStreet li button {
+  appearance: none; width: 100%; text-align: left; background: none; border: 1px solid var(--tt-line); color: var(--tt-ink);
+  border-radius: 8px; padding: 9px 12px; font: 15px/1.35 var(--body); cursor: pointer; display: flex; gap: 10px; align-items: center;
+}
+.tt .ttStreet li button:hover { border-color: var(--tt-candy); }
+.tt .ttStreet li .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--tt-candy); flex: none; }
+
+.tt .ttAdminRow { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--tt-line); border-radius: 8px; }
+.tt .ttAdminRow.hidden { opacity: .55; }
+.tt .ttAdminRow.sel { border-color: var(--tt-pumpkin); }
+.tt a { color: var(--tt-pumpkin); }

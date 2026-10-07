@@ -34,6 +34,18 @@ const SCHEMA = [
      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
   `CREATE INDEX IF NOT EXISTS reports_ip_idx ON reports (ip_hash, created_at)`,
+  `CREATE TABLE IF NOT EXISTS treat_houses (
+     id SERIAL PRIMARY KEY,
+     x REAL NOT NULL,
+     y REAL NOT NULL,
+     house_number TEXT NOT NULL,
+     street TEXT NOT NULL,
+     note TEXT,
+     contact_name TEXT,
+     ip_hash TEXT,
+     hidden BOOLEAN NOT NULL DEFAULT false,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
 ];
 
 const g = globalThis as unknown as { __libertyDb?: Promise<Db> };

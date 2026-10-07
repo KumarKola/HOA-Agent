@@ -81,6 +81,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
         <nav className="nav">
           <a href="/dashboard">Gate status</a>
           <a href="/">Report</a>
+          <a href="/treats/admin">Trick-or-treat</a>
         </nav>
       </header>
       <p className="small muted" style={{ margin: 0 }}>
