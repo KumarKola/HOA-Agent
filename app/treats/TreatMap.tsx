@@ -6,10 +6,10 @@ import { lotAt, type Box } from '@/lib/treatsLots';
 
 export type MapHouse = { id: number; x: number; y: number; label: string; dim?: boolean };
 
-export function Candy({ color = '#b77ad6' }: { color?: string }) {
-  // A wrapped candy, like the flyer's markers.
+export function Candy({ color = '#b77ad6', tight = false }: { color?: string; tight?: boolean }) {
+  // A wrapped candy, like the flyer's markers. `tight` crops the empty space above and below it.
   return (
-    <svg viewBox="0 0 40 40" aria-hidden="true">
+    <svg viewBox={tight ? '0 9 40 22' : '0 0 40 40'} aria-hidden="true">
       <path d="M8 20 L1 12 L3 20 L1 28 Z M32 20 L39 12 L37 20 L39 28 Z" fill={color} stroke="#2a1d33" strokeWidth="1.5" strokeLinejoin="round" />
       <ellipse cx="20" cy="20" rx="13" ry="10" fill={color} stroke="#2a1d33" strokeWidth="1.5" />
       <path d="M12 14 L18 27 M18 12 L25 28 M24 12 L29 22" stroke="#fff" strokeOpacity=".6" strokeWidth="2.2" strokeLinecap="round" />
@@ -106,17 +106,25 @@ function boxStyle(b: Box): React.CSSProperties {
   return { left: `${b.x - b.w / 2}%`, top: `${b.y - b.h / 2}%`, width: `${b.w}%`, height: `${b.h}%` };
 }
 
-/** A candy that fills its lot: laid along the lot's long side, rotated for tall lots like the flyer. */
+/** A candy that fills its lot: laid along the lot's long side with a slight tilt, like the flyer. */
+const CANDY_ASPECT = 40 / 22; // cropped candy art, length : thickness
+const TILT = (10 * Math.PI) / 180; // off the lot's long side
+const OVERHANG = 1.12; // the wrapper ends taper, so the art's box can poke slightly past the lot edge
 function FitCandy({ lot, color }: { lot: Box; color?: string }) {
-  // Lot sides in image pixels decide orientation; the candy art is wider than tall.
   const wPx = (lot.w / 100) * MAP_IMAGE.width, hPx = (lot.h / 100) * MAP_IMAGE.height;
-  const tall = hPx > wPx * 1.2;
-  const style: React.CSSProperties = tall
-    ? { width: `${(hPx / wPx) * 100}%`, height: `${(wPx / hPx) * 100}%`, transform: 'translate(-50%, -50%) rotate(-70deg)' }
-    : { width: '100%', height: '100%', transform: 'translate(-50%, -50%)' };
+  const tall = hPx > wPx;
+  const long = tall ? hPx : wPx, short = tall ? wPx : hPx;
+  const c = Math.cos(TILT), sn = Math.sin(TILT), a = CANDY_ASPECT;
+  // Longest candy whose tilted box fits the lot
+  const len = OVERHANG * Math.min(long / (c + sn / a), short / (sn + c / a));
+  const style: React.CSSProperties = {
+    width: `${(len / wPx) * 100}%`,
+    height: `${(len / a / hPx) * 100}%`,
+    transform: `translate(-50%, -50%) rotate(${tall ? -80 : -10}deg)`,
+  };
   return (
     <span className="ttCandyFit" style={style}>
-      <Candy color={color} />
+      <Candy color={color} tight />
     </span>
   );
 }
