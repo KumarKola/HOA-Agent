@@ -47,8 +47,14 @@ async function connect(): Promise<Db> {
   }
   if (url) {
     const { Pool } = await import('pg');
+    // Hosted Postgres links carry ?sslmode=require, which newer pg treats as full certificate
+    // verification and which overrides the ssl option below. Supabase's pooler presents a
+    // certificate chain that fails that check, so drop the URL's SSL params and use ours:
+    // the connection stays encrypted.
+    const clean = new URL(url);
+    ['sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'uselibpqcompat'].forEach((k) => clean.searchParams.delete(k));
     const pool = new Pool({
-      connectionString: url,
+      connectionString: clean.toString(),
       ssl: process.env.PGSSL === 'false' ? false : { rejectUnauthorized: false },
       max: 3,
     });
