@@ -21,6 +21,8 @@ const SCHEMA = [
      resolution TEXT
    )`,
   `CREATE INDEX IF NOT EXISTS incidents_open_idx ON incidents (status, entrance, gate, issue)`,
+  `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS public_update TEXT`,
+  `ALTER TABLE incidents ADD COLUMN IF NOT EXISTS update_at TIMESTAMPTZ`,
   `CREATE TABLE IF NOT EXISTS reports (
      id SERIAL PRIMARY KEY,
      incident_id INTEGER NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,

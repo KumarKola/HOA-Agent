@@ -25,10 +25,15 @@ function OpenRow({ i }: { i: Incident }) {
           {i.confirmations} {i.confirmations === 1 ? 'report' : 'reports'}
         </span>
         <span>since {phx(i.created_at)}</span>
-        <span>{i.citycync_ticket ? `CityCync ${i.citycync_ticket}` : 'CityCync ticket pending'}</span>
+        <span>{i.citycync_ticket ? `CityCync #${i.citycync_ticket}` : 'CityCync ticket pending'}</span>
         {i.escalated_at && <span>escalated to HOA president</span>}
         {i.source === 'sensor' && <span>sensor alert</span>}
       </div>
+      {i.public_update && (
+        <div className="small">
+          <b>Update{i.update_at ? ` (${phx(i.update_at)})` : ''}:</b> {i.public_update}
+        </div>
+      )}
     </div>
   );
 }
@@ -108,7 +113,7 @@ export default async function Dashboard() {
                 {i.confirmations} {i.confirmations === 1 ? 'report' : 'reports'}
               </span>
               <span>fixed {phx(i.resolved_at!)}</span>
-              {i.citycync_ticket && <span>CityCync {i.citycync_ticket}</span>}
+              {i.citycync_ticket && <span>CityCync #{i.citycync_ticket}</span>}
             </div>
           </div>
         ))}

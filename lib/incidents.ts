@@ -10,6 +10,8 @@ export type Incident = {
   source: string;
   confirmations: number;
   citycync_ticket: string | null;
+  public_update: string | null;
+  update_at: string | null;
   created_at: string;
   last_report_at: string;
   escalated_at: string | null;
@@ -111,8 +113,17 @@ export async function getReports(incidentId: number): Promise<Report[]> {
   );
 }
 
-export async function setTicket(id: number, ticket: string) {
-  await q(`UPDATE incidents SET citycync_ticket = $2 WHERE id = $1`, [id, ticket.trim() || null]);
+/** Saves the CityCync ticket number and the status update shown to residents. */
+export async function setTracking(id: number, ticket: string, update: string): Promise<Incident | undefined> {
+  const [inc] = await q<Incident>(
+    `UPDATE incidents
+        SET citycync_ticket = $2,
+            update_at = CASE WHEN public_update IS DISTINCT FROM $3 THEN now() ELSE update_at END,
+            public_update = $3
+      WHERE id = $1 RETURNING *`,
+    [id, ticket.trim() || null, update.trim() || null],
+  );
+  return inc;
 }
 
 export async function closeIncident(id: number, resolution: 'fixed' | 'dismissed') {

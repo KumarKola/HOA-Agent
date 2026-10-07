@@ -4,19 +4,13 @@ import { dbConfigured } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { incidentTitle } from '@/lib/gates';
-import { closeIncident, getOpenIncidents, getReports, setTicket } from '@/lib/incidents';
+import { closeIncident, getOpenIncidents, getReports } from '@/lib/incidents';
+import { COOKIE, isAuthed } from '@/lib/auth';
+import TrackingForm from './TrackingForm';
 import { adminToken, age, phx, safeEqual } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Liaison · Liberty Gates', robots: { index: false } };
-
-const COOKIE = 'lg_liaison';
-
-async function isAuthed() {
-  if (!process.env.ADMIN_PASSCODE) return false;
-  const c = (await cookies()).get(COOKIE)?.value || '';
-  return safeEqual(c, adminToken());
-}
 
 async function login(form: FormData) {
   'use server';
@@ -35,19 +29,13 @@ async function login(form: FormData) {
   redirect('/admin?wrong=1');
 }
 
-async function saveTicket(form: FormData) {
-  'use server';
-  if (!(await isAuthed())) return;
-  await setTicket(Number(form.get('id')), String(form.get('ticket') || '').slice(0, 40));
-  revalidatePath('/admin');
-}
-
 async function close(form: FormData) {
   'use server';
   if (!(await isAuthed())) return;
   const how = form.get('how') === 'dismissed' ? 'dismissed' : 'fixed';
   await closeIncident(Number(form.get('id')), how);
   revalidatePath('/admin');
+  revalidatePath('/dashboard');
 }
 
 export default async function Admin({ searchParams }: { searchParams: Promise<{ wrong?: string }> }) {
@@ -96,7 +84,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
         </nav>
       </header>
       <p className="small muted" style={{ margin: 0 }}>
-        Add the CityCync ticket number once City Property opens a work order. Mark an incident fixed once the gate works again; that
+        Add the CityCync ticket number once City Property opens a work order, and a short update residents will see on the status page. Mark an incident fixed once the gate works again; that
         sets its time to fix on the dashboard.
       </p>
       {withReports.length === 0 && <p className="card empty">No open incidents.</p>}
@@ -129,17 +117,12 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
                 ))}
               </ul>
             )}
-            <form action={saveTicket} className="inline">
-              <input type="hidden" name="id" value={i.id} />
-              <input
-                name="ticket"
-                id={`ticket-${i.id}`}
-                aria-label="CityCync ticket number"
-                placeholder="CityCync ticket no."
-                defaultValue={i.citycync_ticket || ''}
-              />
-              <button className="btn ghost">Save ticket</button>
-            </form>
+            <TrackingForm
+              key={i.id}
+              id={i.id}
+              ticket={i.citycync_ticket || ''}
+              update={i.public_update || ''}
+            />
             <div className="inline">
               <form action={close}>
                 <input type="hidden" name="id" value={i.id} />
