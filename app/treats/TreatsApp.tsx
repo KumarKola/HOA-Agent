@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import TreatMap, { type MapHouse } from './TreatMap';
 import { geoToMap, STREETS } from '@/lib/treatsGeo';
-import { lotAt } from '@/lib/treatsLots';
+import { lotAt, lotBoxes, type Box } from '@/lib/treatsLots';
 import { streetAt } from '@/lib/treatsStreets';
 
 const snap = (x: number, y: number) => {
@@ -26,6 +26,25 @@ function preciseHelp(): string {
   if (/Android/.test(ua)) return 'On Android: Settings → Apps → your browser → Permissions → Location → turn on Use precise location.';
   return 'Turn on precise location for this browser in your device settings.';
 }
+
+// Delete keys for houses added from this device. Kept in the browser only; best effort.
+const MINE_KEY = 'tt-mine';
+function loadMine(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(MINE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+function saveMine(m: Record<string, string>) {
+  try {
+    localStorage.setItem(MINE_KEY, JSON.stringify(m));
+  } catch {
+    /* private mode: delete from this device won't be remembered after reload */
+  }
+}
+
+const knownStreet = (v: string) => STREETS.find((st) => st.toLowerCase() === v.trim().toLowerCase()) || null;
 
 const addr = (h: PublicHouse) => (h.house_number ? `${h.house_number} ${h.street}` : h.street);
 
@@ -60,6 +79,11 @@ export default function TreatsApp({
   const [err, setErr] = useState('');
   const [done, setDone] = useState<PublicHouse | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const [mine, setMine] = useState<Record<string, string>>({});
+  const [confirmDelete, setConfirmDelete] = useState<PublicHouse | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState('');
+  useEffect(() => setMine(loadMine()), []);
   // Google address search (only when the site has a Google Maps key)
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<{ id: string; main: string; secondary: string }[]>([]);
@@ -255,6 +279,11 @@ export default function TreatsApp({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
       const h: PublicHouse = data.house;
+      if (data.token) {
+        const m = { ...loadMine(), [String(h.id)]: data.token };
+        saveMine(m);
+        setMine(m);
+      }
       setHouses((list) => [...list.filter((x) => x.id !== h.id), h]);
       setDone(h);
       setSelected(h.id);
@@ -271,6 +300,76 @@ export default function TreatsApp({
       setSending(false);
     }
   }
+
+  async function deleteMine(h: PublicHouse) {
+    setDeleting(true);
+    setDeleteErr('');
+    try {
+      const res = await fetch('/api/treats', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: h.id, token: mine[String(h.id)] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not remove it. Try again.');
+      const m = { ...mine };
+      delete m[String(h.id)];
+      saveMine(m);
+      setMine(m);
+      setHouses((list) => list.filter((x) => x.id !== h.id));
+      setSelected(null);
+      if (done?.id === h.id) setDone(null);
+      setConfirmDelete(null);
+    } catch (e) {
+      setDeleteErr(e instanceof Error ? e.message : 'No connection. Try again.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // Typing a known street (no candy yet): highlight that street's lots so the house is easy to find.
+  const typedStreet = adding && !pending ? knownStreet(street) : null;
+  const highlight: Box[] = useMemo(
+    () => (typedStreet ? lotBoxes().filter((b) => streetAt(b.x, b.y) === typedStreet) : []),
+    [typedStreet],
+  );
+  const hlCenter = useMemo(() => {
+    if (!highlight.length) return null;
+    const xs = highlight.map((b) => b.x), ys = highlight.map((b) => b.y);
+    return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+  }, [highlight]);
+  useEffect(() => {
+    if (highlight.length) setZoom((z) => Math.max(z, 2));
+  }, [highlight.length]);
+
+  // With Google: a typed number + street is looked up and the candy placed, no need to pick from the list.
+  const lastLookup = useRef('');
+  useEffect(() => {
+    if (!addressLookup || !adding || pending) return;
+    const n = num.trim(), st = street.trim();
+    if (!/^\d{3,6}$/.test(n) || st.length < 4) return;
+    const key = `${n} ${st}`.toLowerCase();
+    if (key === lastLookup.current) return;
+    const t = setTimeout(async () => {
+      lastLookup.current = key;
+      try {
+        const r = await fetch(`/api/geo/suggest?q=${encodeURIComponent(`${n} ${st}`)}`);
+        const d = await r.json();
+        const hit = (d.suggestions || []).find((x: { main: string }) => x.main.startsWith(`${n} `));
+        if (!hit) return setLookupMsg('Could not find that address on the map. Tap your house instead.');
+        const pr = await fetch(`/api/geo/place?id=${encodeURIComponent(hit.id)}`);
+        const pd = await pr.json();
+        const m = typeof pd.lat === 'number' ? geoToMap(pd.lat, pd.lng) : null;
+        if (!m) return setLookupMsg('Could not find that address on the map. Tap your house instead.');
+        setPending(snap(m.x, m.y));
+        setZoom((z) => Math.max(z, 2));
+        setLookupMsg(`Found ${hit.main} on the map. Check the candy is on your house, or tap the right lot.`);
+      } catch {
+        /* offline: they can still tap */
+      }
+    }, 900);
+    return () => clearTimeout(t);
+  }, [num, street, adding, pending, addressLookup]);
 
   return (
     <div className="ttWrap">
@@ -308,7 +407,9 @@ export default function TreatsApp({
           <p className="ttHint">
             {pending
               ? 'Is the orange candy on your house? If not, tap your house again to move it.'
-              : 'Tap your house on the map, or use your location if you are at home.'}
+              : typedStreet
+                ? `The lots on ${typedStreet} are outlined. Tap your house.`
+                : 'Tap your house on the map, or use your location if you are at home.'}
           </p>
         )}
         <div className="ttSpread">
@@ -340,6 +441,7 @@ export default function TreatsApp({
           pending={pending}
           you={you}
           selectedId={selected}
+          highlight={highlight}
           onTap={(x, y) => {
             placeAt(x, y);
             setErr('');
@@ -349,7 +451,9 @@ export default function TreatsApp({
           focus={
             pending
               ? { ...pending, key: `p${pending.x},${pending.y}` }
-              : sel
+              : hlCenter
+                ? { ...hlCenter, key: `st${typedStreet}` }
+                : sel
                 ? { x: sel.x, y: sel.y, key: `h${sel.id}` }
                 : you
                   ? { ...you, key: 'you' }
@@ -367,6 +471,45 @@ export default function TreatsApp({
             </button>
           </div>
           {sel.note ? <p>{sel.note}</p> : <p className="ttMuted">Handing out candy.</p>}
+          {mine[String(sel.id)] && (
+            <button
+              className="ttBtn small ghost danger"
+              onClick={() => {
+                setDeleteErr('');
+                setConfirmDelete(sel);
+              }}
+            >
+              Remove my house from the map
+            </button>
+          )}
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="ttModalBack" onClick={() => !deleting && setConfirmDelete(null)}>
+          <div
+            className="ttModal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="tt-del-title"
+            aria-describedby="tt-del-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="tt-del-title">Remove your house?</h2>
+            <p id="tt-del-desc">
+              <b>{addr(confirmDelete)}</b> will disappear from the trick-or-treat map. Families won&rsquo;t see it anymore. You can add it
+              again later.
+            </p>
+            {deleteErr && <p className="ttErr">{deleteErr}</p>}
+            <div className="ttRow">
+              <button className="ttBtn danger" autoFocus disabled={deleting} onClick={() => deleteMine(confirmDelete)}>
+                {deleting ? 'Removing…' : 'Yes, remove it'}
+              </button>
+              <button className="ttBtn ghost" disabled={deleting} onClick={() => setConfirmDelete(null)}>
+                Keep it
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'crypto';
 import { q } from './db';
 export * from './treatsGeo';
 
@@ -22,8 +23,12 @@ export async function listTreatHouses(): Promise<TreatHouse[]> {
 }
 
 export async function listTreatHousesAdmin(): Promise<TreatHouseAdmin[]> {
-  return q<TreatHouseAdmin>(`SELECT * FROM treat_houses ORDER BY created_at DESC`);
+  return q<TreatHouseAdmin>(
+    `SELECT id, x, y, house_number, street, note, contact_name, hidden, created_at FROM treat_houses ORDER BY created_at DESC`,
+  );
 }
+
+const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 
 export async function treatSignupsFromDevice(ipHash: string): Promise<number> {
   const [r] = await q<{ n: number }>(
@@ -41,7 +46,10 @@ export async function addTreatHouse(h: {
   note: string;
   contact_name: string;
   ipHash: string;
-}): Promise<TreatHouse> {
+}): Promise<{ house: TreatHouse; token: string }> {
+  // A private key returned only to the device that signed up; lets that device delete its own entry.
+  const token = randomBytes(18).toString('base64url');
+  const tokenHash = hashToken(token);
   // Same address signing up again replaces the earlier entry instead of adding a second candy.
   // A house is the same house if the typed address matches, or the candy lands on the same lot.
   const [existing] = await q<{ id: number }>(
@@ -55,18 +63,29 @@ export async function addTreatHouse(h: {
   if (existing) {
     const [row] = await q<TreatHouse>(
       `UPDATE treat_houses SET x = $2, y = $3, note = $4, contact_name = COALESCE($5, contact_name),
-              house_number = CASE WHEN $6 <> '' THEN $6 ELSE house_number END, street = $7
+              house_number = CASE WHEN $6 <> '' THEN $6 ELSE house_number END, street = $7, edit_token_hash = $8
         WHERE id = $1 RETURNING id, x, y, house_number, street, note`,
-      [existing.id, h.x, h.y, h.note || null, h.contact_name || null, h.house_number, h.street],
+      [existing.id, h.x, h.y, h.note || null, h.contact_name || null, h.house_number, h.street, tokenHash],
     );
-    return row;
+    return { house: row, token };
   }
   const [row] = await q<TreatHouse>(
-    `INSERT INTO treat_houses (x, y, house_number, street, note, contact_name, ip_hash)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, x, y, house_number, street, note`,
-    [h.x, h.y, h.house_number, h.street, h.note || null, h.contact_name || null, h.ipHash],
+    `INSERT INTO treat_houses (x, y, house_number, street, note, contact_name, ip_hash, edit_token_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, x, y, house_number, street, note`,
+    [h.x, h.y, h.house_number, h.street, h.note || null, h.contact_name || null, h.ipHash, tokenHash],
   );
-  return row;
+  return { house: row, token };
+}
+
+/** A volunteer deleting their own entry, proven by the key their device got at sign-up. */
+export async function deleteOwnTreatHouse(id: number, token: string): Promise<boolean> {
+  const rows = await q(`DELETE FROM treat_houses WHERE id = $1 AND edit_token_hash = $2 RETURNING id`, [id, hashToken(token)]);
+  return rows.length > 0;
+}
+
+/** Organizer: permanent delete. */
+export async function deleteTreatHouse(id: number) {
+  await q(`DELETE FROM treat_houses WHERE id = $1`, [id]);
 }
 
 export async function moveTreatHouse(id: number, x: number, y: number) {

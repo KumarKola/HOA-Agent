@@ -27,6 +27,7 @@ export default function TreatMap({
   onTap,
   onCandy,
   focus,
+  highlight,
 }: {
   houses: MapHouse[];
   zoom: number;
@@ -38,6 +39,8 @@ export default function TreatMap({
   onCandy?: (id: number) => void;
   /** A point (in %) to scroll into the middle of the view, e.g. a new candy or a picked house. */
   focus?: { x: number; y: number; key: string | number } | null;
+  /** Lots to outline, e.g. every lot on the street being typed. */
+  highlight?: Box[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -68,6 +71,7 @@ export default function TreatMap({
           alt="Liberty community map with streets and lots"
           draggable={false}
         />
+        {highlight?.map((b, i) => <div key={`hl${i}`} className="ttHl" style={boxStyle(b)} />)}
         {houses.map((h) => {
           const lot = lotAt(h.x, h.y);
           return (

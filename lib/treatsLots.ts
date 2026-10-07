@@ -23,3 +23,8 @@ export function lotAt(xPct: number, yPct: number): Box & { snapped: boolean } {
   const [w, h] = best && bd < 60 ** 2 ? [best[2], best[3]] : [18, 18];
   return { x: xPct, y: yPct, w: (w / W) * 100, h: (h / H) * 100, snapped: false };
 }
+
+/** Every detected lot as a box in % of the map. */
+export function lotBoxes(): Box[] {
+  return LOTS.map(([x, y, w, h]) => pct(x, y, w, h));
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addTreatHouse, signupOpen, treatSignupsFromDevice, validPct } from '@/lib/treats';
+import { addTreatHouse, deleteOwnTreatHouse, signupOpen, treatSignupsFromDevice, validPct } from '@/lib/treats';
 import { clean, reporterHash } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   if ((await treatSignupsFromDevice(ipHash)) >= 5) {
     return NextResponse.json({ error: 'Too many sign-ups from this device. Try again later.' }, { status: 429 });
   }
-  const house = await addTreatHouse({
+  const { house, token } = await addTreatHouse({
     x: Math.round(body.x * 100) / 100,
     y: Math.round(body.y * 100) / 100,
     house_number,
@@ -29,5 +29,16 @@ export async function POST(req: Request) {
     contact_name: clean(body.name, 60),
     ipHash,
   });
-  return NextResponse.json({ house });
+  return NextResponse.json({ house, token });
+}
+
+// A volunteer removes their own house using the key their device saved at sign-up.
+export async function DELETE(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  const id = Number(body.id);
+  const token = clean(body.token, 64);
+  if (!Number.isInteger(id) || !token) return NextResponse.json({ error: 'Missing details.' }, { status: 400 });
+  const ok = await deleteOwnTreatHouse(id, token);
+  if (!ok) return NextResponse.json({ error: 'This house was added from another device. Ask the organizer to remove it.' }, { status: 403 });
+  return NextResponse.json({ deleted: id });
 }

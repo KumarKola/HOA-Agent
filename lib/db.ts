@@ -46,6 +46,7 @@ const SCHEMA = [
      hidden BOOLEAN NOT NULL DEFAULT false,
      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
+  `ALTER TABLE treat_houses ADD COLUMN IF NOT EXISTS edit_token_hash TEXT`,
 ];
 
 const g = globalThis as unknown as { __libertyDb?: Promise<Db> };

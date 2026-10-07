@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import TreatMap from '../TreatMap';
-import { hideHouse, moveHouse } from './actions';
+import { deleteHouse, hideHouse, moveHouse } from './actions';
 import { lotAt } from '@/lib/treatsLots';
 
 type Row = {
@@ -26,6 +26,7 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
   const [zoom, setZoom] = useState(1);
   const [msg, setMsg] = useState('');
   const [pending, start] = useTransition();
+  const [confirm, setConfirm] = useState<Row | null>(null);
   const visible = rows.filter((r) => !r.hidden);
 
   function place(tx: number, ty: number) {
@@ -51,6 +52,17 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
     });
   }
 
+  function remove(r: Row) {
+    start(async () => {
+      const e = await deleteHouse(r.id);
+      if (e) return setMsg(e);
+      setRows((rs) => rs.filter((x) => x.id !== r.id));
+      if (moving === r.id) setMoving(null);
+      setConfirm(null);
+      setMsg('Deleted for good.');
+    });
+  }
+
   const movingRow = rows.find((r) => r.id === moving);
 
   return (
@@ -70,7 +82,7 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
           </button>
         </p>
       ) : (
-        <p className="ttSmall ttMuted">Check each candy sits on the address typed. Use Move to fix one, or Remove for spam.</p>
+        <p className="ttSmall ttMuted">Check each candy sits on the address typed. Use Move to fix one, Remove to hide it, or Delete to erase it.</p>
       )}
       {msg && <p className="ttOk ttSmall">{msg}</p>}
       <div className="ttRow" role="group" aria-label="Zoom">
@@ -116,10 +128,32 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
               <button className="ttBtn small ghost" disabled={pending} onClick={() => toggle(r)}>
                 {r.hidden ? 'Restore' : 'Remove'}
               </button>
+              <button className="ttBtn small ghost danger" disabled={pending} onClick={() => setConfirm(r)}>
+                Delete
+              </button>
             </div>
           </div>
         ))}
       </section>
+      {confirm && (
+        <div className="ttModalBack" onClick={() => !pending && setConfirm(null)}>
+          <div className="ttModal" role="alertdialog" aria-modal="true" aria-labelledby="tt-adel" onClick={(e) => e.stopPropagation()}>
+            <h2 id="tt-adel">Delete this sign-up for good?</h2>
+            <p>
+              <b>{[confirm.house_number, confirm.street].filter(Boolean).join(' ')}</b> will be erased and can&rsquo;t be restored. To just take it off the
+              map, use Remove instead.
+            </p>
+            <div className="ttRow">
+              <button className="ttBtn danger" autoFocus disabled={pending} onClick={() => remove(confirm)}>
+                {pending ? 'Deleting…' : 'Yes, delete'}
+              </button>
+              <button className="ttBtn ghost" disabled={pending} onClick={() => setConfirm(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
