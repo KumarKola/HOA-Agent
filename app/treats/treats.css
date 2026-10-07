@@ -1,11 +1,11 @@
-/* Trick-or-treat map: one deliberate Halloween-night look (single theme), matching the flyer's candy purple. */
+/* Trick-or-treat map: one deliberate Halloween-night look (single theme), with pumpkin-orange candies. */
 .tt {
   --tt-bg: #17141f;
   --tt-panel: #221d2e;
   --tt-line: #3a3149;
   --tt-ink: #f4ede3;
   --tt-muted: #b7aec4;
-  --tt-candy: #b77ad6;
+  --tt-candy: #ff7518;
   --tt-pumpkin: #f2923a;
   --tt-pumpkin-ink: #1d1206;
   --tt-you: #4aa8ff;

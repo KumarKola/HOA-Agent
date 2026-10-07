@@ -6,13 +6,22 @@ import { lotAt, type Box } from '@/lib/treatsLots';
 
 export type MapHouse = { id: number; x: number; y: number; label: string; dim?: boolean };
 
-export function Candy({ color = '#b77ad6', tight = false }: { color?: string; tight?: boolean }) {
-  // A wrapped candy, like the flyer's markers. `tight` crops the empty space above and below it.
+export const CANDY_ORANGE = '#ff7518';
+export function Candy({ color = CANDY_ORANGE, stripe = '#b8460b' }: { color?: string; stripe?: string }) {
+  // A wrapped candy like the flyer's markers: oval body, striped, twisted wrapper at both ends. Drawn lying flat.
   return (
-    <svg viewBox={tight ? '0 9 40 22' : '0 0 40 40'} aria-hidden="true">
-      <path d="M8 20 L1 12 L3 20 L1 28 Z M32 20 L39 12 L37 20 L39 28 Z" fill={color} stroke="#2a1d33" strokeWidth="1.5" strokeLinejoin="round" />
-      <ellipse cx="20" cy="20" rx="13" ry="10" fill={color} stroke="#2a1d33" strokeWidth="1.5" />
-      <path d="M12 14 L18 27 M18 12 L25 28 M24 12 L29 22" stroke="#fff" strokeOpacity=".6" strokeWidth="2.2" strokeLinecap="round" />
+    <svg viewBox="0 0 56 22" aria-hidden="true">
+      <defs>
+        <clipPath id="ttCandyBody">
+          <ellipse cx="28" cy="11" rx="16" ry="10.4" />
+        </clipPath>
+      </defs>
+      <path d="M13 11 L1 3 L4 11 L1 19 Z M43 11 L55 3 L52 11 L55 19 Z" fill={color} stroke="#2a1608" strokeWidth="1.2" strokeLinejoin="round" />
+      <ellipse cx="28" cy="11" rx="16" ry="10.4" fill={color} />
+      <g clipPath="url(#ttCandyBody)" stroke={stripe} strokeWidth="3.4">
+        <path d="M14 24 L24 -2 M22 24 L32 -2 M30 24 L40 -2 M38 24 L48 -2" />
+      </g>
+      <ellipse cx="28" cy="11" rx="16" ry="10.4" fill="none" stroke="#2a1608" strokeWidth="1.2" />
     </svg>
   );
 }
@@ -92,7 +101,7 @@ export default function TreatMap({
         })}
         {pending && (
           <div className="ttLot pending" style={boxStyle(lotAt(pending.x, pending.y))}>
-            <FitCandy lot={lotAt(pending.x, pending.y)} color="#f2923a" />
+            <FitCandy lot={lotAt(pending.x, pending.y)} />
           </div>
         )}
         {you && <div className="ttYou" style={{ left: `${you.x}%`, top: `${you.y}%` }} aria-label="You are here" />}
@@ -106,25 +115,21 @@ function boxStyle(b: Box): React.CSSProperties {
   return { left: `${b.x - b.w / 2}%`, top: `${b.y - b.h / 2}%`, width: `${b.w}%`, height: `${b.h}%` };
 }
 
-/** A candy that fills its lot: laid along the lot's long side with a slight tilt, like the flyer. */
-const CANDY_ASPECT = 40 / 22; // cropped candy art, length : thickness
-const TILT = (10 * Math.PI) / 180; // off the lot's long side
-const OVERHANG = 1.12; // the wrapper ends taper, so the art's box can poke slightly past the lot edge
+/** Same size candy on every house, as on the flyer: about one lot long, laid along the lot with a slight tilt. */
+const CANDY_LEN = 48; // map image px (lots are about 16 x 43)
+const CANDY_THICK = CANDY_LEN * (22 / 56);
 function FitCandy({ lot, color }: { lot: Box; color?: string }) {
   const wPx = (lot.w / 100) * MAP_IMAGE.width, hPx = (lot.h / 100) * MAP_IMAGE.height;
   const tall = hPx > wPx;
-  const long = tall ? hPx : wPx, short = tall ? wPx : hPx;
-  const c = Math.cos(TILT), sn = Math.sin(TILT), a = CANDY_ASPECT;
-  // Longest candy whose tilted box fits the lot
-  const len = OVERHANG * Math.min(long / (c + sn / a), short / (sn + c / a));
+  // The span is sized before it turns, as percentages of the lot box.
   const style: React.CSSProperties = {
-    width: `${(len / wPx) * 100}%`,
-    height: `${(len / a / hPx) * 100}%`,
-    transform: `translate(-50%, -50%) rotate(${tall ? -80 : -10}deg)`,
+    width: `${(CANDY_LEN / wPx) * 100}%`,
+    height: `${(CANDY_THICK / hPx) * 100}%`,
+    transform: `translate(-50%, -50%) rotate(${tall ? 80 : 10}deg)`,
   };
   return (
     <span className="ttCandyFit" style={style}>
-      <Candy color={color} tight />
+      <Candy color={color} />
     </span>
   );
 }
