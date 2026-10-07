@@ -13,6 +13,20 @@ const snap = (x: number, y: number) => {
 
 export type PublicHouse = { id: number; x: number; y: number; house_number: string; street: string; note: string | null };
 
+// Phones with Precise Location off report a circle a mile or more wide; that's useless for picking a house.
+const APPROX_M = 150;
+
+/** How to turn on precise location on this device. */
+function preciseHelp(): string {
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  const iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && typeof document !== 'undefined' && 'ontouchend' in document);
+  if (iOS && /CriOS/.test(ua)) return 'On iPhone: Settings → Privacy & Security → Location Services → Chrome → turn on Precise Location.';
+  if (iOS) return 'On iPhone: Settings → Privacy & Security → Location Services → Safari Websites → turn on Precise Location.';
+  if (/Macintosh/.test(ua)) return 'On a Mac: System Settings → Privacy & Security → Location Services → turn it on for your browser. Macs find location by Wi-Fi, so it can still be a few houses off.';
+  if (/Android/.test(ua)) return 'On Android: Settings → Apps → your browser → Permissions → Location → turn on Use precise location.';
+  return 'Turn on precise location for this browser in your device settings.';
+}
+
 const addr = (h: PublicHouse) => (h.house_number ? `${h.house_number} ${h.street}` : h.street);
 
 export default function TreatsApp({
@@ -33,7 +47,8 @@ export default function TreatsApp({
   const [tracking, setTracking] = useState(false);
   const [gpsMsg, setGpsMsg] = useState('');
   const watchId = useRef<number | null>(null);
-  const lastFix = useRef<{ lat: number; lng: number } | null>(null);
+  const lastFix = useRef<{ lat: number; lng: number; acc: number } | null>(null);
+  const approxOnly = useRef(false); // last fix from "Show where I am" was approximate
 
   const [adding, setAdding] = useState(false);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
@@ -178,8 +193,14 @@ export default function TreatsApp({
         if (!m) {
           setYou(null);
           setGpsMsg('You are outside the community map.');
+        } else if (p.coords.accuracy > APPROX_M) {
+          lastFix.current = null;
+          approxOnly.current = true;
+          setYou(null);
+          setGpsMsg(`This device is only sharing an approximate location. ${preciseHelp()}`);
         } else {
-          lastFix.current = { lat: p.coords.latitude, lng: p.coords.longitude };
+          lastFix.current = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy };
+          approxOnly.current = false;
           setYou(m);
           setGpsMsg(p.coords.accuracy > 40 ? 'Location is rough right now; it sharpens outdoors.' : '');
         }
@@ -198,21 +219,26 @@ export default function TreatsApp({
     setErr('');
     setSelected(null);
     // Location already showing from "Show where I am": put the candy there right away.
-    if (you) placeAt(you.x, you.y, lastFix.current);
+    if (you && lastFix.current) placeAt(you.x, you.y, lastFix.current);
     setTimeout(() => mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }
 
   function useMyLocation() {
     if (!navigator.geolocation) return setErr('This browser cannot share location. Tap your house on the map instead.');
+    // "Show where I am" is already tracking: use that instead of asking the device again.
+    if (tracking && you && lastFix.current) return placeAt(you.x, you.y, lastFix.current);
+    if (tracking && approxOnly.current) return setErr(`This device is only sharing an approximate location. ${preciseHelp()} Or tap your house on the map.`);
     setErr('Finding your house…');
     navigator.geolocation.getCurrentPosition(
       (p) => {
         const m = geoToMap(p.coords.latitude, p.coords.longitude);
         if (!m) return setErr('Your location is outside the community. Tap your house on the map instead.');
+        if (p.coords.accuracy > APPROX_M) return setErr(`This device is only sharing an approximate location. ${preciseHelp()} Or tap your house on the map.`);
         placeAt(m.x, m.y, { lat: p.coords.latitude, lng: p.coords.longitude });
       },
       (e) => setErr(e.code === e.PERMISSION_DENIED ? 'Location is blocked. Tap your house on the map instead.' : 'Could not get your location. Tap your house on the map instead.'),
-      { enableHighAccuracy: true, timeout: 20000 },
+      // precise, and a fresh fix rather than a cached coarse one
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     );
   }
 
