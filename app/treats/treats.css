@@ -56,6 +56,17 @@
 .tt .ttMarker svg { width: 100%; height: 100%; filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
 .tt .ttMarker.sel svg { transform: scale(1.35); }
 .tt .ttMarker.dim { opacity: .45; }
+.tt .ttLot { position: absolute; pointer-events: none; }
+.tt .ttLot.dim { opacity: .45; }
+.tt .ttCandyFit { position: absolute; left: 50%; top: 50%; display: block; }
+.tt .ttCandyFit svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+.tt .ttLot.sel { outline: 2px solid var(--tt-pumpkin); outline-offset: 1px; border-radius: 2px; }
+.tt .ttLot.pending { outline: 2px solid var(--tt-pumpkin); outline-offset: 1px; animation: ttBlink 1.2s ease-in-out infinite; }
+@keyframes ttBlink { 50% { outline-color: transparent; } }
+/* Tap target stays finger-sized even when the lot is tiny on screen */
+.tt .ttHit { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max(100%, 28px); height: max(100%, 28px);
+  background: none; border: 0; padding: 0; cursor: pointer; pointer-events: auto; border-radius: 4px; }
+.tt .ttHit:focus-visible { outline: 3px solid var(--tt-candy); }
 .tt .ttPending { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; pointer-events: none; }
 .tt .ttPending::before {
   content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 3px solid var(--tt-pumpkin);
@@ -63,7 +74,7 @@
 }
 .tt .ttYou { position: absolute; transform: translate(-50%, -50%); width: 16px; height: 16px; border-radius: 50%; background: var(--tt-you); border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(74,168,255,.25); pointer-events: none; }
 @keyframes ttPulse { from { transform: scale(.7); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .tt .ttPending::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tt .ttPending::before, .tt .ttLot.pending { animation: none; } }
 
 .tt .ttHint { border-left: 3px solid var(--tt-pumpkin); padding: 6px 10px; background: rgba(242,146,58,.08); border-radius: 0 6px 6px 0; font-size: 15px; }
 .tt .ttErr { color: var(--tt-bad); font-size: 14px; font-weight: 600; }
@@ -90,3 +101,8 @@
 .tt .ttAdminRow.hidden { opacity: .55; }
 .tt .ttAdminRow.sel { border-color: var(--tt-pumpkin); }
 .tt a { color: var(--tt-pumpkin); }
+
+.tt .ttSearch { display: grid; gap: 6px; position: relative; }
+.tt .ttSugs { list-style: none; margin: 0; padding: 4px; border: 1px solid var(--tt-line); border-radius: 8px; background: #17141f; display: grid; gap: 2px; }
+.tt .ttSugs button { appearance: none; width: 100%; text-align: left; background: none; border: 0; color: var(--tt-ink); padding: 10px; border-radius: 6px; font: 15px/1.3 var(--body); cursor: pointer; }
+.tt .ttSugs button:hover, .tt .ttSugs button:focus-visible { background: var(--tt-panel); outline: none; }

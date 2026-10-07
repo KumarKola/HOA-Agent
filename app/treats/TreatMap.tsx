@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { MAP_IMAGE } from '@/lib/treatsGeo';
+import { lotAt, type Box } from '@/lib/treatsLots';
 
 export type MapHouse = { id: number; x: number; y: number; label: string; dim?: boolean };
 
@@ -67,29 +68,51 @@ export default function TreatMap({
           alt="Liberty community map with streets and lots"
           draggable={false}
         />
-        {houses.map((h) => (
-          <button
-            key={h.id}
-            type="button"
-            className={`ttMarker${selectedId === h.id ? ' sel' : ''}${h.dim ? ' dim' : ''}`}
-            style={{ left: `${h.x}%`, top: `${h.y}%` }}
-            aria-label={h.label}
-            onClick={(e) => {
-              if (placing) return; // let the tap fall through to placement
-              e.stopPropagation();
-              onCandy?.(h.id);
-            }}
-          >
-            <Candy />
-          </button>
-        ))}
+        {houses.map((h) => {
+          const lot = lotAt(h.x, h.y);
+          return (
+            <div key={h.id} className={`ttLot${selectedId === h.id ? ' sel' : ''}${h.dim ? ' dim' : ''}`} style={boxStyle(lot)}>
+              <FitCandy lot={lot} />
+              <button
+                type="button"
+                className="ttHit"
+                aria-label={h.label}
+                onClick={(e) => {
+                  if (placing) return; // let the tap fall through to placement
+                  e.stopPropagation();
+                  onCandy?.(h.id);
+                }}
+              />
+            </div>
+          );
+        })}
         {pending && (
-          <div className="ttPending" style={{ left: `${pending.x}%`, top: `${pending.y}%` }}>
-            <Candy color="#f2923a" />
+          <div className="ttLot pending" style={boxStyle(lotAt(pending.x, pending.y))}>
+            <FitCandy lot={lotAt(pending.x, pending.y)} color="#f2923a" />
           </div>
         )}
         {you && <div className="ttYou" style={{ left: `${you.x}%`, top: `${you.y}%` }} aria-label="You are here" />}
       </div>
     </div>
+  );
+}
+
+/** Positions a box that matches the lot on the map. */
+function boxStyle(b: Box): React.CSSProperties {
+  return { left: `${b.x - b.w / 2}%`, top: `${b.y - b.h / 2}%`, width: `${b.w}%`, height: `${b.h}%` };
+}
+
+/** A candy that fills its lot: laid along the lot's long side, rotated for tall lots like the flyer. */
+function FitCandy({ lot, color }: { lot: Box; color?: string }) {
+  // Lot sides in image pixels decide orientation; the candy art is wider than tall.
+  const wPx = (lot.w / 100) * MAP_IMAGE.width, hPx = (lot.h / 100) * MAP_IMAGE.height;
+  const tall = hPx > wPx * 1.2;
+  const style: React.CSSProperties = tall
+    ? { width: `${(hPx / wPx) * 100}%`, height: `${(wPx / hPx) * 100}%`, transform: 'translate(-50%, -50%) rotate(-70deg)' }
+    : { width: '100%', height: '100%', transform: 'translate(-50%, -50%)' };
+  return (
+    <span className="ttCandyFit" style={style}>
+      <Candy color={color} />
+    </span>
   );
 }

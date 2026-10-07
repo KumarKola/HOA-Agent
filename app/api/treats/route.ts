@@ -12,8 +12,9 @@ export async function POST(req: Request) {
   if (!validPct(body.x) || !validPct(body.y)) {
     return NextResponse.json({ error: 'Place your candy on the map first.' }, { status: 400 });
   }
-  if (!/^\d{3,6}[A-Za-z]?$/.test(house_number) || street.length < 3) {
-    return NextResponse.json({ error: 'Enter your house number and street.' }, { status: 400 });
+  if (street.length < 3) return NextResponse.json({ error: 'Enter your street.' }, { status: 400 });
+  if (house_number && !/^\d{1,6}[A-Za-z]?$/.test(house_number)) {
+    return NextResponse.json({ error: 'House number should be digits only, or leave it blank.' }, { status: 400 });
   }
   const ipHash = await reporterHash();
   if ((await treatSignupsFromDevice(ipHash)) >= 5) {

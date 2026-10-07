@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import TreatMap from '../TreatMap';
 import { hideHouse, moveHouse } from './actions';
+import { lotAt } from '@/lib/treatsLots';
 
 type Row = {
   id: number;
@@ -27,8 +28,10 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
   const [pending, start] = useTransition();
   const visible = rows.filter((r) => !r.hidden);
 
-  function place(x: number, y: number) {
+  function place(tx: number, ty: number) {
     if (moving === null) return;
+    const l = lotAt(tx, ty);
+    const x = Math.round(l.x * 100) / 100, y = Math.round(l.y * 100) / 100;
     const id = moving;
     start(async () => {
       const e = await moveHouse(id, x, y);
@@ -61,7 +64,7 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
       </header>
       {movingRow ? (
         <p className="ttHint">
-          Tap the right house on the map for <b>{movingRow.house_number} {movingRow.street}</b>.{' '}
+          Tap the right house on the map for <b>{[movingRow.house_number, movingRow.street].filter(Boolean).join(' ')}</b>.{' '}
           <button className="ttBtn small ghost" onClick={() => setMoving(null)}>
             Cancel
           </button>
@@ -79,7 +82,7 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
         </button>
       </div>
       <TreatMap
-        houses={visible.map((r) => ({ id: r.id, x: r.x, y: r.y, label: `${r.house_number} ${r.street}`, dim: moving !== null && r.id !== moving }))}
+        houses={visible.map((r) => ({ id: r.id, x: r.x, y: r.y, label: [r.house_number, r.street].filter(Boolean).join(' '), dim: moving !== null && r.id !== moving }))}
         zoom={zoom}
         placing={moving !== null}
         pending={null}
@@ -95,7 +98,7 @@ export default function TreatsAdmin({ houses }: { houses: Row[] }) {
           <div key={r.id} className={`ttAdminRow${r.hidden ? ' hidden' : ''}${moving === r.id ? ' sel' : ''}`}>
             <div className="ttSpread">
               <b>
-                {r.house_number} {r.street}
+                {[r.house_number, r.street].filter(Boolean).join(' ')}
               </b>
               <span className="ttSmall ttMuted">{when(r.created_at)}</span>
             </div>

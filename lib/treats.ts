@@ -43,15 +43,21 @@ export async function addTreatHouse(h: {
   ipHash: string;
 }): Promise<TreatHouse> {
   // Same address signing up again replaces the earlier entry instead of adding a second candy.
+  // A house is the same house if the typed address matches, or the candy lands on the same lot.
   const [existing] = await q<{ id: number }>(
-    `SELECT id FROM treat_houses WHERE lower(house_number) = lower($1) AND lower(street) = lower($2) AND hidden = false LIMIT 1`,
-    [h.house_number, h.street],
+    `SELECT id FROM treat_houses
+      WHERE hidden = false
+        AND ((($1)::text <> '' AND lower(house_number) = lower($1) AND lower(street) = lower($2))
+             OR (abs(x - $3) < 0.05 AND abs(y - $4) < 0.05))
+      ORDER BY id LIMIT 1`,
+    [h.house_number, h.street, h.x, h.y],
   );
   if (existing) {
     const [row] = await q<TreatHouse>(
-      `UPDATE treat_houses SET x = $2, y = $3, note = $4, contact_name = COALESCE($5, contact_name)
+      `UPDATE treat_houses SET x = $2, y = $3, note = $4, contact_name = COALESCE($5, contact_name),
+              house_number = CASE WHEN $6 <> '' THEN $6 ELSE house_number END, street = $7
         WHERE id = $1 RETURNING id, x, y, house_number, street, note`,
-      [existing.id, h.x, h.y, h.note || null, h.contact_name || null],
+      [existing.id, h.x, h.y, h.note || null, h.contact_name || null, h.house_number, h.street],
     );
     return row;
   }

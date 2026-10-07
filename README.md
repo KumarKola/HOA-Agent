@@ -53,6 +53,9 @@ On Vercel's free plan cron jobs run once a day, so escalation emails go out betw
 - `/treats`: volunteers add their house by tapping it on the community map (or using their phone's location), with an optional note. Families see every participating house, a list by street, and a "you are here" dot.
 - `/treats/admin`: organizer view (sign in on `/admin` first): move a misplaced candy or remove spam. Names are visible only here.
 - Set `TREATS_SIGNUP_CLOSES` (YYYY-MM-DD) to close sign-ups after that day.
+- Candies snap to the lot that was tapped and are sized to fit it (lot boxes in `lib/treatsLots.ts`, detected from the map image).
+- House number is optional; street is required. Signing up again from the same address or lot replaces the earlier entry.
+- Optional `GOOGLE_MAPS_API_KEY` (Places API (New) + Geocoding API) adds address suggestions while typing, places the candy at the picked address, and fills the address from "Use my location". Calls go through the server, limited to the community and to 60 lookups per device per 10 minutes.
 - The map image is `public/treats-map.jpg` (1206×1010). GPS alignment uses the four perimeter intersections in `lib/treatsGeo.ts`; if the image is replaced with one of a different size or framing, update those pixel positions.
 
 ## Phase 3 hook

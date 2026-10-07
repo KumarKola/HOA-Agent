@@ -2,6 +2,7 @@ import SetupNotice from '../SetupNotice';
 import { dbConfigured } from '@/lib/db';
 import { listTreatHouses, signupClosesAt, signupOpen } from '@/lib/treats';
 import TreatsApp from './TreatsApp';
+import { addressLookupEnabled } from '@/lib/google';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,5 +13,5 @@ export default async function TreatsPage() {
   const closesLabel = closes
     ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', weekday: 'long', month: 'long', day: 'numeric' }).format(closes)
     : null;
-  return <TreatsApp initial={houses} signupOpen={signupOpen()} closesLabel={closesLabel ? `end of ${closesLabel}` : null} />;
+  return <TreatsApp initial={houses} signupOpen={signupOpen()} closesLabel={closesLabel ? `end of ${closesLabel}` : null} addressLookup={addressLookupEnabled()} />;
 }

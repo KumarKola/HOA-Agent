@@ -3,19 +3,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import TreatMap, { type MapHouse } from './TreatMap';
 import { geoToMap, STREETS } from '@/lib/treatsGeo';
+import { lotAt } from '@/lib/treatsLots';
+
+const snap = (x: number, y: number) => {
+  const l = lotAt(x, y);
+  return { x: Math.round(l.x * 100) / 100, y: Math.round(l.y * 100) / 100 };
+};
 
 export type PublicHouse = { id: number; x: number; y: number; house_number: string; street: string; note: string | null };
 
-const addr = (h: PublicHouse) => `${h.house_number} ${h.street}`;
+const addr = (h: PublicHouse) => (h.house_number ? `${h.house_number} ${h.street}` : h.street);
 
 export default function TreatsApp({
   initial,
   signupOpen,
   closesLabel,
+  addressLookup = false,
 }: {
   initial: PublicHouse[];
   signupOpen: boolean;
   closesLabel: string | null;
+  addressLookup?: boolean;
 }) {
   const [houses, setHouses] = useState(initial);
   const [zoom, setZoom] = useState(1);
@@ -35,6 +43,66 @@ export default function TreatsApp({
   const [err, setErr] = useState('');
   const [done, setDone] = useState<PublicHouse | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  // Google address search (only when the site has a Google Maps key)
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<{ id: string; main: string; secondary: string }[]>([]);
+  const [lookupMsg, setLookupMsg] = useState('');
+  const session = useRef('');
+  const picked = useRef('');
+  const newSession = () => (session.current = Math.random().toString(36).slice(2) + Date.now().toString(36));
+
+  useEffect(() => {
+    if (!addressLookup || query.trim().length < 2 || query === picked.current) {
+      setSuggestions([]);
+      return;
+    }
+    const ctl = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        if (!session.current) newSession();
+        const r = await fetch(`/api/geo/suggest?q=${encodeURIComponent(query)}&s=${session.current}`, { signal: ctl.signal });
+        const d = await r.json();
+        setSuggestions(d.suggestions || []);
+      } catch {
+        /* typing again or offline: keep the previous list */
+      }
+    }, 300);
+    return () => {
+      clearTimeout(t);
+      ctl.abort();
+    };
+  }, [query, addressLookup]);
+
+  /** Fill the address fields from Google's street number + street name. */
+  function fillAddress(a: { number?: string; street?: string } | null) {
+    if (!a) return false;
+    if (a.number) setNum(a.number);
+    if (a.street) setStreet(a.street);
+    return !!(a.number || a.street);
+  }
+
+  async function pickSuggestion(sug: { id: string; main: string }) {
+    setSuggestions([]);
+    picked.current = sug.main;
+    setQuery(sug.main);
+    setLookupMsg('');
+    try {
+      const r = await fetch(`/api/geo/place?id=${encodeURIComponent(sug.id)}&s=${session.current}`);
+      const d = await r.json();
+      session.current = ''; // a pick ends the billing session
+      fillAddress(d);
+      if (typeof d.lat === 'number' && typeof d.lng === 'number') {
+        const m = geoToMap(d.lat, d.lng);
+        if (m) {
+          setPending(snap(m.x, m.y));
+          setZoom((z) => Math.max(z, 2));
+          setLookupMsg('Candy placed at that address. Check it is on your house, or tap the right lot.');
+        }
+      }
+    } catch {
+      setLookupMsg('Could not look up that address. Type it below and tap your house on the map.');
+    }
+  }
   const mapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => {
@@ -48,7 +116,7 @@ export default function TreatsApp({
   const byStreet = useMemo(() => {
     const m = new Map<string, PublicHouse[]>();
     [...houses]
-      .sort((a, b) => a.street.localeCompare(b.street) || Number.parseInt(a.house_number) - Number.parseInt(b.house_number))
+      .sort((a, b) => a.street.localeCompare(b.street) || (Number.parseInt(a.house_number) || 0) - (Number.parseInt(b.house_number) || 0))
       .forEach((h) => m.set(h.street, [...(m.get(h.street) || []), h]));
     return [...m.entries()];
   }, [houses]);
@@ -108,9 +176,17 @@ export default function TreatsApp({
       (p) => {
         const m = geoToMap(p.coords.latitude, p.coords.longitude);
         if (!m) return setErr('Your location is outside the community. Tap your house on the map instead.');
-        setPending(m);
+        setPending(snap(m.x, m.y));
         setZoom((z) => Math.max(z, 2));
         setErr('');
+        if (addressLookup) {
+          fetch(`/api/geo/reverse?lat=${p.coords.latitude}&lng=${p.coords.longitude}`)
+            .then((r) => r.json())
+            .then((d) => {
+              if (fillAddress(d.address)) setLookupMsg('Address filled from your location. Fix it if it shows a neighbor’s number.');
+            })
+            .catch(() => {});
+        }
       },
       (e) => setErr(e.code === e.PERMISSION_DENIED ? 'Location is blocked. Tap your house on the map instead.' : 'Could not get your location. Tap your house on the map instead.'),
       { enableHighAccuracy: true, timeout: 20000 },
@@ -136,6 +212,10 @@ export default function TreatsApp({
       setAdding(false);
       setPending(null);
       setNote('');
+      setNum('');
+      setStreet('');
+      setQuery('');
+      setLookupMsg('');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'No connection. Try again.');
     } finally {
@@ -212,7 +292,7 @@ export default function TreatsApp({
           you={you}
           selectedId={selected}
           onTap={(x, y) => {
-            setPending({ x, y });
+            setPending(snap(x, y));
             setErr('');
             if (zoom === 1) setZoom(2);
           }}
@@ -244,9 +324,39 @@ export default function TreatsApp({
       {adding && (
         <div className="ttCard" ref={formRef}>
           <h2>Your house</h2>
+          {addressLookup && (
+            <div className="ttSearch">
+              <label className="ttField" htmlFor="tt-find">
+                Find your address
+                <input
+                  id="tt-find"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Start typing, e.g. 5838 S 23rd"
+                  autoComplete="off"
+                  role="combobox"
+                  aria-expanded={suggestions.length > 0}
+                  aria-controls="tt-sugs"
+                />
+              </label>
+              {suggestions.length > 0 && (
+                <ul id="tt-sugs" className="ttSugs" role="listbox">
+                  {suggestions.map((sg) => (
+                    <li key={sg.id}>
+                      <button type="button" role="option" aria-selected="false" onClick={() => pickSuggestion(sg)}>
+                        <b>{sg.main}</b>
+                        <span className="ttMuted"> {sg.secondary}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {lookupMsg && <p className="ttSmall ttMuted">{lookupMsg}</p>}
+            </div>
+          )}
           <div className="ttGrid2">
             <label className="ttField" htmlFor="tt-num">
-              House no.
+              House no. (optional)
               <input id="tt-num" inputMode="numeric" maxLength={10} value={num} onChange={(e) => setNum(e.target.value)} placeholder="5838" />
             </label>
             <label className="ttField" htmlFor="tt-street">
@@ -305,7 +415,7 @@ export default function TreatsApp({
                     >
                       <span className="dot" aria-hidden="true" />
                       <span>
-                        <b>{h.house_number}</b>
+                        <b>{h.house_number || 'House'}</b>
                         {h.note ? <span className="ttMuted"> · {h.note}</span> : null}
                       </span>
                     </button>
@@ -318,7 +428,8 @@ export default function TreatsApp({
       </section>
 
       <p className="ttSmall ttMuted">
-        Your location stays on your phone; only the candy spot you confirm is saved. Map is a drawing, not to scale.
+        Your location is used only to show where you are, place your candy and look up your address. It is never saved; only
+        the candy spot you confirm is. Map is a drawing, not to scale.
       </p>
     </div>
   );
