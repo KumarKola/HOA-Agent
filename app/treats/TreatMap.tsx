@@ -116,7 +116,7 @@ function boxStyle(b: Box): React.CSSProperties {
 }
 
 /** Same size candy on every house, as on the flyer: about one lot long, laid along the lot with a slight tilt. */
-const CANDY_LEN = 48; // map image px (lots are about 16 x 43)
+const CANDY_LEN = 62; // map image px (lots are about 20 x 55)
 const CANDY_THICK = CANDY_LEN * (22 / 56);
 function FitCandy({ lot, color }: { lot: Box; color?: string }) {
   const wPx = (lot.w / 100) * MAP_IMAGE.width, hPx = (lot.h / 100) * MAP_IMAGE.height;

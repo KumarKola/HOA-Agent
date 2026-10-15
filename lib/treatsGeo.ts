@@ -1,6 +1,6 @@
 // Map geometry for the trick-or-treat page. No database code: safe to use in the browser.
 
-export const MAP_IMAGE = { src: '/treats-map.jpg', width: 1206, height: 1010 };
+export const MAP_IMAGE = { src: '/treats-map-v2.jpg', width: 1600, height: 1424 };
 
 // Streets inside the community, from the recorded plats for Liberty 1A, 1B and 2.
 export const STREETS = [
@@ -28,10 +28,10 @@ export const STREETS = [
 // GPS alignment: the four perimeter intersections (Google Maps intersection coordinates)
 // matched to the centre of the perimeter roads on the drawing, in image pixels.
 const CONTROL: { lat: number; lng: number; x: number; y: number }[] = [
-  { lat: 33.3995231, lng: -112.1163582, x: 124, y: 40 }, // 27th Ave & Roeser Rd
-  { lat: 33.3995175, lng: -112.1079525, x: 1082, y: 40 }, // 23rd Ave & Roeser Rd
-  { lat: 33.3921972, lng: -112.1163692, x: 124, y: 1001 }, // 27th Ave & Southern Ave
-  { lat: 33.3922355, lng: -112.1077535, x: 1082, y: 1001 }, // 23rd Ave & Southern Ave
+  { lat: 33.3995231, lng: -112.1163582, x: 240, y: 77 }, // 27th Ave & Roeser Rd
+  { lat: 33.3995175, lng: -112.1079525, x: 1482, y: 77 }, // 23rd Ave & Roeser Rd
+  { lat: 33.3921972, lng: -112.1163692, x: 240, y: 1322 }, // 27th Ave & Southern Ave
+  { lat: 33.3922355, lng: -112.1077535, x: 1483, y: 1323 }, // 23rd Ave & Southern Ave
 ];
 
 // Coordinates are recentred and scaled before fitting; raw lat/lng differ only in the 4th decimal

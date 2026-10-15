@@ -47,6 +47,15 @@ const SCHEMA = [
      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
   `ALTER TABLE treat_houses ADD COLUMN IF NOT EXISTS edit_token_hash TEXT`,
+  // Map image v2 (Oct 15): same drawing, larger. Houses saved on the first image are moved to the same lot.
+  // Existing rows get map_v 1, new rows default to 2; the update only touches rows not yet moved.
+  `ALTER TABLE treat_houses ADD COLUMN IF NOT EXISTS map_v SMALLINT NOT NULL DEFAULT 1`,
+  `ALTER TABLE treat_houses ALTER COLUMN map_v SET DEFAULT 2`,
+  `UPDATE treat_houses SET
+     x = LEAST(100, GREATEST(0, (1.2973009889008413 * x * 12.06 + 6.540169378283998e-05 * y * 10.10 + 78.76273452760262) / 16.00)),
+     y = LEAST(100, GREATEST(0, (0.0003728297209468522 * x * 12.06 + 1.2960694958169223 * y * 10.10 + 24.823144044712084) / 14.24)),
+     map_v = 2
+   WHERE map_v = 1`,
 ];
 
 const g = globalThis as unknown as { __libertyDb?: Promise<Db> };
