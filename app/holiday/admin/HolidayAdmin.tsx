@@ -202,7 +202,7 @@ export default function HolidayAdmin({
         </button>
       </div>
       <TreatMap
-        src="/holiday-map.jpg"
+        src="/holiday-map-v2.jpg"
         alt="Liberty community map with the homes in the holiday decor contest"
         renderMarker={holidayMarker}
         houses={visible.map((r) => ({ id: r.id, x: r.x, y: r.y, kind: r.marker, label: addr(r), dim: moving !== null && r.id !== moving }))}

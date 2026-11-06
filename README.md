@@ -64,7 +64,7 @@ On Vercel's free plan cron jobs run once a day, so escalation emails go out betw
 - Dates (Arizona time, all optional): `HOLIDAY_ENTRY_CLOSES` (default Dec 10), `HOLIDAY_VOTE_OPENS` (Dec 11), `HOLIDAY_VOTE_CLOSES` (Dec 22), `HOLIDAY_RESULTS` (Dec 23), as YYYY-MM-DD. Entries and votes are kept per year (`HOLIDAY_SEASON` overrides); January still shows the past December's winners.
 - One vote per address: voters type their house number and pick their street. The phone that voted can change its vote while voting is open; another phone can't vote for the same address, and a phone votes for one address. No one can vote for their own home. Vote counts stay hidden until the results day.
 - `/holiday/admin` (sign in on `/admin` first): live standings, every vote with the voting address, remove a vote, move/remove/delete a home, and committee awards such as "Board's Choice" (shown from the results day).
-- The map is `public/holiday-map.jpg`: the Halloween map with the decorations removed, same size and framing, so lots and GPS line up.
+- The map is `public/holiday-map-v2.jpg`: the Halloween map with its art replaced by holiday decorations (drawn only in the margins and open spaces, never on a lot), same size and framing, so lots and GPS line up.
 - To try a phase locally, set `HOLIDAY_FAKE_NOW` (ignored on Vercel).
 
 ## Phase 3 hook

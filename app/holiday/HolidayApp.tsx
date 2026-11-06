@@ -614,7 +614,7 @@ export default function HolidayApp({
         </div>
         {gpsMsg && !adding && <p className="ttSmall ttMuted">{gpsMsg}</p>}
         <TreatMap
-          src="/holiday-map.jpg"
+          src="/holiday-map-v2.jpg"
           alt="Liberty community map with the homes in the holiday decor contest"
           renderMarker={holidayMarker}
           pendingKind={marker}
