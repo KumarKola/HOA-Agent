@@ -86,6 +86,8 @@ const SCHEMA = [
      UNIQUE (season, voter_key)
    )`,
   `CREATE INDEX IF NOT EXISTS holiday_votes_device_idx ON holiday_votes (season, device_hash)`,
+  // Organizer switches, e.g. the contest's test mode.
+  `CREATE TABLE IF NOT EXISTS holiday_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
 ];
 
 const g = globalThis as unknown as { __libertyDb?: Promise<Db> };

@@ -1,7 +1,7 @@
 import SetupNotice from '../../SetupNotice';
 import { dbConfigured } from '@/lib/db';
 import { isAuthed } from '@/lib/auth';
-import { listEntriesAdmin, listVotesAdmin, phase, scheduleLabels, season } from '@/lib/holiday';
+import { contest, listEntriesAdmin, listVotesAdmin, phase, scheduleLabels } from '@/lib/holiday';
 import HolidayAdmin from './HolidayAdmin';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,18 @@ export default async function Page() {
       </div>
     );
   }
-  const [entries, votes] = await Promise.all([listEntriesAdmin(), listVotesAdmin()]);
-  return <HolidayAdmin entries={entries} votes={votes} phase={phase()} labels={scheduleLabels()} season={season()} />;
+  const c = await contest();
+  const [entries, votes] = await Promise.all([listEntriesAdmin(c.season), listVotesAdmin(c.season)]);
+  return (
+    <HolidayAdmin
+      key={`${c.season}-${c.test}`}
+      entries={entries}
+      votes={votes}
+      phase={c.phase}
+      realPhase={phase()}
+      test={c.test}
+      labels={scheduleLabels()}
+      season={c.year}
+    />
+  );
 }

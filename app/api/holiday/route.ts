@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { addEntry, deleteOwnEntry, entriesFromDevice, knownStreet, MARKERS, phase, type Marker } from '@/lib/holiday';
+import { addEntry, contest, deleteOwnEntry, entriesFromDevice, knownStreet, MARKERS, type Marker } from '@/lib/holiday';
 import { validPct } from '@/lib/treatsGeo';
 import { clean, reporterHash } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  if (phase() !== 'entry') return NextResponse.json({ error: 'Entries are closed for this year.' }, { status: 403 });
+  const c = await contest();
+  if (c.phase !== 'entry') return NextResponse.json({ error: 'Entries are closed for this year.' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const house_number = clean(body.house_number, 10);
   const street = knownStreet(clean(body.street, 40));
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too many entries from this device. Try again later.' }, { status: 429 });
   }
   const { entry, token } = await addEntry({
+    season: c.season,
     x: Math.round(body.x * 100) / 100,
     y: Math.round(body.y * 100) / 100,
     house_number,

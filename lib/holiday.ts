@@ -69,6 +69,39 @@ export function schedule() {
   };
 }
 
+// ---------- Test mode ----------
+// The organizer can switch the whole contest to a practice round (Entry, Voting or Winners) from /holiday/admin.
+// A practice round uses its own season number (the year, negative), so practice homes and votes never mix with
+// the real contest. Turning test mode off returns everyone to the real dates and data.
+export type TestPhase = 'entry' | 'voting' | 'results';
+export const TEST_PHASES: TestPhase[] = ['entry', 'voting', 'results'];
+
+export async function testPhase(): Promise<TestPhase | null> {
+  const [r] = await q<{ value: string }>(`SELECT value FROM holiday_settings WHERE key = 'test_phase'`);
+  return r && (TEST_PHASES as string[]).includes(r.value) ? (r.value as TestPhase) : null;
+}
+
+export async function setTestPhase(v: TestPhase | null) {
+  if (!v) await q(`DELETE FROM holiday_settings WHERE key = 'test_phase'`);
+  else
+    await q(
+      `INSERT INTO holiday_settings (key, value) VALUES ('test_phase', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [v],
+    );
+}
+
+/** What the site shows right now: the real contest by date, or the practice round. */
+export async function contest(): Promise<{ season: number; phase: Phase; test: TestPhase | null; year: number }> {
+  const year = season();
+  const t = await testPhase();
+  return t ? { season: -year, phase: t, test: t, year } : { season: year, phase: phase(), test: null, year };
+}
+
+/** Practice homes and votes go away; the real contest is untouched. */
+export async function clearTestData() {
+  await q(`DELETE FROM holiday_entries WHERE season < 0`);
+}
+
 export function phase(at: Date = now()): Phase {
   const s = schedule();
   const t = at.getTime();
@@ -105,19 +138,19 @@ export const knownStreet = (street: string) => STREETS.find((s) => s.toLowerCase
 
 const PUBLIC_COLS = 'id, x, y, house_number, street, marker, note, award';
 
-export async function listEntries(): Promise<HolidayEntry[]> {
+export async function listEntries(yr: number): Promise<HolidayEntry[]> {
   return q<HolidayEntry>(
     `SELECT ${PUBLIC_COLS} FROM holiday_entries WHERE season = $1 AND hidden = false ORDER BY street, house_number`,
-    [season()],
+    [yr],
   );
 }
 
-export async function listEntriesAdmin(): Promise<HolidayEntryAdmin[]> {
+export async function listEntriesAdmin(yr: number): Promise<HolidayEntryAdmin[]> {
   return q<HolidayEntryAdmin>(
     `SELECT e.id, e.x, e.y, e.house_number, e.street, e.marker, e.note, e.award, e.contact_name, e.hidden, e.created_at,
             (SELECT count(*)::int FROM holiday_votes v WHERE v.entry_id = e.id) AS votes
        FROM holiday_entries e WHERE e.season = $1 ORDER BY e.created_at DESC`,
-    [season()],
+    [yr],
   );
 }
 
@@ -130,6 +163,7 @@ export async function entriesFromDevice(ipHash: string): Promise<number> {
 }
 
 export async function addEntry(h: {
+  season: number;
   x: number;
   y: number;
   house_number: string;
@@ -142,7 +176,7 @@ export async function addEntry(h: {
   // Private key for the device that entered; lets it remove its own entry.
   const token = randomBytes(18).toString('base64url');
   const tokenHash = hash(token);
-  const yr = season();
+  const yr = h.season;
   // The same address entering again updates its entry instead of adding a second marker.
   const [existing] = await q<{ id: number }>(
     `SELECT id FROM holiday_entries
@@ -198,8 +232,8 @@ export type VoteResult =
  * One vote per address per season. The phone that cast it can change it while voting is open.
  * A phone votes for one address only, so one person can't vote for every house on their street.
  */
-export async function castVote(v: { entryId: number; num: string; street: string; device: string; ipHash: string }): Promise<VoteResult> {
-  const yr = season();
+export async function castVote(v: { season: number; entryId: number; num: string; street: string; device: string; ipHash: string }): Promise<VoteResult> {
+  const yr = v.season;
   const key = addressKey(v.num, v.street);
   const st = knownStreet(v.street);
   if (!key || !st) return { ok: false, status: 400, error: 'Enter your house number and pick your street from the list.' };
@@ -263,13 +297,13 @@ export type VoteRow = {
   same_network: number;
 };
 
-export async function listVotesAdmin(): Promise<VoteRow[]> {
+export async function listVotesAdmin(yr: number): Promise<VoteRow[]> {
   return q<VoteRow>(
     `SELECT v.id, v.voter_address, v.entry_id, e.house_number || ' ' || e.street AS entry_address, v.created_at, v.updated_at,
             (SELECT count(*)::int FROM holiday_votes w WHERE w.season = v.season AND w.ip_hash = v.ip_hash AND w.id <> v.id) AS same_network
        FROM holiday_votes v JOIN holiday_entries e ON e.id = v.entry_id
       WHERE v.season = $1 ORDER BY v.created_at DESC`,
-    [season()],
+    [yr],
   );
 }
 
@@ -280,13 +314,13 @@ export async function deleteVote(id: number) {
 export type Winner = HolidayEntry & { votes: number; rank: number };
 
 /** Residents' Choice: top three places by votes (ties share a place). Visible only from the results day. */
-export async function residentsChoice(): Promise<Winner[]> {
+export async function residentsChoice(yr: number): Promise<Winner[]> {
   const rows = await q<HolidayEntry & { votes: number }>(
     `SELECT e.id, e.x, e.y, e.house_number, e.street, e.marker, e.note, e.award, count(v.id)::int AS votes
        FROM holiday_entries e JOIN holiday_votes v ON v.entry_id = e.id
       WHERE e.season = $1 AND e.hidden = false
       GROUP BY e.id ORDER BY votes DESC, e.street, e.house_number`,
-    [season()],
+    [yr],
   );
   const out: Winner[] = [];
   let rank = 0, last = -1;

@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import TreatMap from '../../treats/TreatMap';
 import { holidayMarker } from '../HolidayMarkers';
-import { awardHolidayEntry, deleteHolidayEntry, hideHolidayEntry, moveHolidayEntry, removeHolidayVote } from './actions';
+import { awardHolidayEntry, clearHolidayTestData, deleteHolidayEntry, hideHolidayEntry, moveHolidayEntry, removeHolidayVote, setHolidayTestMode } from './actions';
 import { lotAt } from '@/lib/treatsLots';
 
 type Row = {
@@ -25,6 +26,7 @@ type Vote = { id: number; voter_address: string; entry_id: number; entry_address
 const when = (d: string) =>
   new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(d));
 const addr = (r: { house_number: string; street: string }) => `${r.house_number} ${r.street}`;
+const TEST_NAME = { entry: 'Enter your home', voting: 'Voting', results: 'Winners' } as const;
 const PHASE: Record<string, string> = {
   entry: 'Entries open',
   between: 'Entries closed, voting not open yet',
@@ -37,12 +39,16 @@ export default function HolidayAdmin({
   entries,
   votes,
   phase,
+  realPhase,
+  test,
   labels,
   season,
 }: {
   entries: Row[];
   votes: Vote[];
   phase: string;
+  realPhase: string;
+  test: 'entry' | 'voting' | 'results' | null;
   labels: { entryCloses: string; voteOpens: string; voteCloses: string; results: string };
   season: number;
 }) {
@@ -54,6 +60,8 @@ export default function HolidayAdmin({
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState<Row | null>(null);
   const [confirmVote, setConfirmVote] = useState<Vote | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const router = useRouter();
   const [awardDraft, setAwardDraft] = useState<Record<number, string>>(() => Object.fromEntries(entries.map((e) => [e.id, e.award || ''])));
   const visible = rows.filter((r) => !r.hidden);
   const ranked = useMemo(() => [...visible].sort((a, b) => b.votes - a.votes || a.street.localeCompare(b.street)), [visible]);
@@ -110,6 +118,26 @@ export default function HolidayAdmin({
     });
   }
 
+  function setTest(v: '' | 'entry' | 'voting' | 'results') {
+    start(async () => {
+      const e = await setHolidayTestMode(v);
+      if (e) return setMsg(e);
+      setMsg(v ? `Test mode: everyone now sees the ${TEST_NAME[v]} screen.` : 'Test mode off. The site follows the real contest dates again.');
+      router.refresh();
+    });
+  }
+  function clearTest() {
+    start(async () => {
+      const e = await clearHolidayTestData();
+      if (e) return setMsg(e);
+      setConfirmClear(false);
+      setRows([]);
+      setVoteRows([]);
+      setMsg('Practice homes and votes cleared.');
+      router.refresh();
+    });
+  }
+
   const movingRow = rows.find((r) => r.id === moving);
 
   return (
@@ -117,12 +145,41 @@ export default function HolidayAdmin({
       <header className="ttSpread">
         <h1>
           <small>Holiday contest {season} · Organizer</small>
-          {visible.length} homes · {voteRows.length} votes
+          {visible.length} {visible.length === 1 ? 'home' : 'homes'} · {voteRows.length} {voteRows.length === 1 ? 'vote' : 'votes'}
         </h1>
         <a href="/holiday">Open the public page</a>
       </header>
+      <section className="ttCard" aria-labelledby="hd-test">
+        <h2 id="hd-test">Test mode</h2>
+        <p className="ttSmall ttMuted">
+          Show everyone a practice round of any screen right now. Practice homes and votes are kept apart from the real contest; turn test
+          mode off and the site goes back to the real dates ({PHASE[realPhase] || realPhase} today).
+        </p>
+        <div className="hdTestPick" role="group" aria-label="Test mode">
+          {(['', 'entry', 'voting', 'results'] as const).map((v) => (
+            <button
+              key={v || 'off'}
+              className={`ttBtn small ghost${(test || '') === v ? ' cur' : ''}`}
+              aria-pressed={(test || '') === v}
+              disabled={pending}
+              onClick={() => setTest(v)}
+            >
+              {v ? TEST_NAME[v] : 'Off (real dates)'}
+            </button>
+          ))}
+        </div>
+        {test && (
+          <p className="ttSmall">
+            Practice round on: <b>{TEST_NAME[test]}</b>. Enter a few homes on the Enter screen, switch to Voting to vote from your phone, then
+            Winners. This list and the votes below are the practice ones.{' '}
+            <button className="ttBtn small ghost danger" disabled={pending} onClick={() => setConfirmClear(true)}>
+              Clear practice data
+            </button>
+          </p>
+        )}
+      </section>
       <p className="ttHint">
-        <b>{PHASE[phase] || phase}.</b> Enter until {labels.entryCloses}, vote {labels.voteOpens}–{labels.voteCloses}, winners {labels.results}. Vote
+        <b>{test ? `Practice round: ${TEST_NAME[test]}` : PHASE[phase] || phase}.</b> Enter until {labels.entryCloses}, vote {labels.voteOpens}–{labels.voteCloses}, winners {labels.results}. Vote
         counts are only visible here until then.
       </p>
       {movingRow ? (
@@ -255,6 +312,22 @@ export default function HolidayAdmin({
                 {pending ? 'Deleting…' : 'Yes, delete'}
               </button>
               <button className="ttBtn ghost" disabled={pending} onClick={() => setConfirm(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmClear && (
+        <div className="ttModalBack" onClick={() => !pending && setConfirmClear(false)}>
+          <div className="ttModal" role="alertdialog" aria-modal="true" aria-labelledby="hd-tclr" onClick={(e) => e.stopPropagation()}>
+            <h2 id="hd-tclr">Clear the practice round?</h2>
+            <p>All practice homes and votes will be erased. The real contest isn&rsquo;t affected.</p>
+            <div className="ttRow">
+              <button className="ttBtn danger" autoFocus disabled={pending} onClick={clearTest}>
+                {pending ? 'Clearing…' : 'Yes, clear it'}
+              </button>
+              <button className="ttBtn ghost" disabled={pending} onClick={() => setConfirmClear(false)}>
                 Cancel
               </button>
             </div>

@@ -77,6 +77,7 @@ export default function HolidayApp({
   labels,
   season,
   winners,
+  test = false,
   addressLookup = false,
 }: {
   initial: PublicEntry[];
@@ -84,6 +85,8 @@ export default function HolidayApp({
   labels: Labels;
   season: number;
   winners: PublicWinner[];
+  /** Practice round switched on by the organizer. */
+  test?: boolean;
   addressLookup?: boolean;
 }) {
   const [entries, setEntries] = useState(initial);
@@ -463,13 +466,20 @@ export default function HolidayApp({
     <div className="ttWrap">
       <header className="ttSpread">
         <h1>
-          <small>Liberty community · Holidays {season}</small>
+          <small>Liberty community · Holidays {Math.abs(season)}</small>
           Holiday Decor Contest
         </h1>
         <p className="ttCount ttMuted">
           <b>{entries.length}</b> {entries.length === 1 ? 'home' : 'homes'} in the contest
         </p>
       </header>
+
+      {test && (
+        <p className="hdTest" role="status">
+          <b>Test mode.</b> This is a practice round for the social committee. Homes and votes entered now are not part of the real contest
+          and will be cleared.
+        </p>
+      )}
 
       <ol className="hdSteps" aria-label="Contest dates">
         <li className={phase === 'entry' ? 'now' : ''}>
