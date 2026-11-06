@@ -56,6 +56,36 @@ const SCHEMA = [
      y = LEAST(100, GREATEST(0, (0.0003728297209468522 * x * 12.06 + 1.2960694958169223 * y * 10.10 + 24.823144044712084) / 14.24)),
      map_v = 2
    WHERE map_v = 1`,
+  // Holiday decor contest: homes enter themselves, residents vote (one vote per address per season).
+  `CREATE TABLE IF NOT EXISTS holiday_entries (
+     id SERIAL PRIMARY KEY,
+     season INTEGER NOT NULL,
+     x REAL NOT NULL,
+     y REAL NOT NULL,
+     house_number TEXT NOT NULL,
+     street TEXT NOT NULL,
+     marker TEXT NOT NULL DEFAULT 'tree',
+     note TEXT,
+     contact_name TEXT,
+     ip_hash TEXT,
+     edit_token_hash TEXT,
+     hidden BOOLEAN NOT NULL DEFAULT false,
+     award TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE TABLE IF NOT EXISTS holiday_votes (
+     id SERIAL PRIMARY KEY,
+     season INTEGER NOT NULL,
+     entry_id INTEGER NOT NULL REFERENCES holiday_entries(id) ON DELETE CASCADE,
+     voter_key TEXT NOT NULL,
+     voter_address TEXT NOT NULL,
+     device_hash TEXT NOT NULL,
+     ip_hash TEXT,
+     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+     UNIQUE (season, voter_key)
+   )`,
+  `CREATE INDEX IF NOT EXISTS holiday_votes_device_idx ON holiday_votes (season, device_hash)`,
 ];
 
 const g = globalThis as unknown as { __libertyDb?: Promise<Db> };

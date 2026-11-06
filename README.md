@@ -56,7 +56,16 @@ On Vercel's free plan cron jobs run once a day, so escalation emails go out betw
 - Candies snap to the lot that was tapped and are sized to fit it (lot boxes in `lib/treatsLots.ts`, detected from the map image).
 - House number is optional; street is required. Signing up again from the same address or lot replaces the earlier entry.
 - Optional `GOOGLE_MAPS_API_KEY` (Places API (New) + Geocoding API) adds address suggestions while typing, places the candy at the picked address, and fills the address from "Use my location". Calls go through the server, limited to the community and to 60 lookups per device per 10 minutes.
-- The map image is `public/treats-map.jpg` (1206×1010). GPS alignment uses the four perimeter intersections in `lib/treatsGeo.ts`; if the image is replaced with one of a different size or framing, update those pixel positions.
+- The map image is `public/treats-map-v2.jpg` (1600×1424). GPS alignment uses the four perimeter intersections in `lib/treatsGeo.ts`; if the image is replaced with one of a different size or framing, update those pixel positions.
+
+## Holiday decor contest
+
+- `/holiday`: homes enter themselves (tap the home, pick a tree or lights, house number + street required). Neighbors vote for their favorite; winners show with badges on the map.
+- Dates (Arizona time, all optional): `HOLIDAY_ENTRY_CLOSES` (default Dec 10), `HOLIDAY_VOTE_OPENS` (Dec 11), `HOLIDAY_VOTE_CLOSES` (Dec 22), `HOLIDAY_RESULTS` (Dec 23), as YYYY-MM-DD. Entries and votes are kept per year (`HOLIDAY_SEASON` overrides); January still shows the past December's winners.
+- One vote per address: voters type their house number and pick their street. The phone that voted can change its vote while voting is open; another phone can't vote for the same address, and a phone votes for one address. No one can vote for their own home. Vote counts stay hidden until the results day.
+- `/holiday/admin` (sign in on `/admin` first): live standings, every vote with the voting address, remove a vote, move/remove/delete a home, and committee awards such as "Board's Choice" (shown from the results day).
+- The map is `public/holiday-map.jpg`: the Halloween map with the decorations removed, same size and framing, so lots and GPS line up.
+- To try a phase locally, set `HOLIDAY_FAKE_NOW` (ignored on Vercel).
 
 ## Phase 3 hook
 

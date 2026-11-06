@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { MAP_IMAGE } from '@/lib/treatsGeo';
 import { lotAt, type Box } from '@/lib/treatsLots';
 
-export type MapHouse = { id: number; x: number; y: number; label: string; dim?: boolean };
+export type MapHouse = { id: number; x: number; y: number; label: string; dim?: boolean; kind?: string; badge?: string };
 
 export const CANDY_ORANGE = '#ff7518';
 export function Candy({ color = CANDY_ORANGE, stripe = '#b8460b' }: { color?: string; stripe?: string }) {
@@ -37,6 +37,10 @@ export default function TreatMap({
   onCandy,
   focus,
   highlight,
+  src = MAP_IMAGE.src,
+  alt = 'Liberty community map with streets and lots',
+  renderMarker,
+  pendingKind,
 }: {
   houses: MapHouse[];
   zoom: number;
@@ -50,7 +54,14 @@ export default function TreatMap({
   focus?: { x: number; y: number; key: string | number } | null;
   /** Lots to outline, e.g. every lot on the street being typed. */
   highlight?: Box[];
+  /** Another map picture with the same size and framing (e.g. the holiday map). */
+  src?: string;
+  alt?: string;
+  /** Draws a house's marker in its lot; the candy when not given. */
+  renderMarker?: (lot: Box, kind?: string) => React.ReactNode;
+  pendingKind?: string;
 }) {
+  const drawMarker = renderMarker ?? ((lot: Box) => <FitCandy lot={lot} />);
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
@@ -74,10 +85,10 @@ export default function TreatMap({
     <div className="ttMapScroll" ref={scrollRef}>
       <div className={`ttMapInner${placing ? ' placing' : ''}`} style={{ width: `${zoom * 100}%` }} onClick={handle}>
         <img
-          src={MAP_IMAGE.src}
+          src={src}
           width={MAP_IMAGE.width}
           height={MAP_IMAGE.height}
-          alt="Liberty community map with streets and lots"
+          alt={alt}
           draggable={false}
         />
         {highlight?.map((b, i) => <div key={`hl${i}`} className="ttHl" style={boxStyle(b)} />)}
@@ -85,7 +96,8 @@ export default function TreatMap({
           const lot = lotAt(h.x, h.y);
           return (
             <div key={h.id} className={`ttLot${selectedId === h.id ? ' sel' : ''}${h.dim ? ' dim' : ''}`} style={boxStyle(lot)}>
-              <FitCandy lot={lot} />
+              {drawMarker(lot, h.kind)}
+              {h.badge && <span className="ttBadge">{h.badge}</span>}
               <button
                 type="button"
                 className="ttHit"
@@ -101,7 +113,7 @@ export default function TreatMap({
         })}
         {pending && (
           <div className="ttLot pending" style={boxStyle(lotAt(pending.x, pending.y))}>
-            <FitCandy lot={lotAt(pending.x, pending.y)} />
+            {drawMarker(lotAt(pending.x, pending.y), pendingKind)}
           </div>
         )}
         {you && <div className="ttYou" style={{ left: `${you.x}%`, top: `${you.y}%` }} aria-label="You are here" />}
