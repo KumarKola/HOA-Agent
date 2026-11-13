@@ -145,3 +145,8 @@ details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .inline input { width: auto; flex: 1 1 160px; }
 .inline .btn { width: auto; min-height: 44px; padding: 10px 14px; font-size: 15px; }
 .notes { margin: 0; padding-left: 18px; font-size: 14px; display: grid; gap: 4px; }
+
+/* Copyright line at the bottom of every screen. The themed maps (.tt) show their own inside the theme. */
+.siteFoot { text-align: center; font: 13px/1.4 var(--body); color: var(--muted, #6b7378); padding: 8px 16px 24px; }
+.tt ~ .siteFoot { display: none; }
+.tt .siteFoot.inTheme { color: var(--tt-muted); padding-top: 0; margin-top: -32px; }

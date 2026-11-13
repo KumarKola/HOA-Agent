@@ -1,5 +1,6 @@
 import '../treats/treats.css';
 import './holiday.css';
+import Copyright from '../Copyright';
 
 export const metadata = {
   title: 'Holiday Decor Contest',
@@ -9,5 +10,10 @@ export const metadata = {
 export const viewport = { themeColor: '#10241c' };
 
 export default function HolidayLayout({ children }: { children: React.ReactNode }) {
-  return <div className="tt hd">{children}</div>;
+  return (
+    <div className="tt hd">
+      {children}
+      <Copyright className="siteFoot inTheme" />
+    </div>
+  );
 }
