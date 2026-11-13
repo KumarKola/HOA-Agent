@@ -67,7 +67,7 @@ On Vercel's free plan cron jobs run once a day, so escalation emails go out betw
 - The map is `public/holiday-map-v2.jpg`: the Halloween map with its art replaced by holiday decorations (drawn only in the margins and open spaces, never on a lot), same size and framing, so lots and GPS line up.
 - To try a phase locally, set `HOLIDAY_FAKE_NOW` (ignored on Vercel).
 - More than one community can run the contest (`lib/communities.ts`). Liberty is at `/holiday` (organizer `/holiday/admin`); others at `/holiday/<community>` (organizer `/holiday/<community>/admin`, same passcode). Entries, votes and test mode are kept per community.
-- Skyline Ranch II (San Tan Valley) is at `/holiday/skyline-ranch-ii`. Its map (`public/skyline-holiday.jpg`) is redrawn from the HOA's tract plat with holiday art in the open areas; street names and the GPS alignment come from OpenStreetMap street centerlines fitted onto the plat's roads (`lib/skylineMap.ts`).
+- Skyline Ranch II (San Tan Valley) is at `/holiday/skyline-ranch-ii`. Its map (`public/skyline-holiday-v3.jpg`) is redrawn from the HOA's tract plat with holiday art in the open areas; street names and the GPS alignment come from OpenStreetMap street centerlines fitted onto the plat's roads (`lib/skylineMap.ts`).
 
 ## Phase 3 hook
 

@@ -1,11 +1,11 @@
 // Skyline Ranch II (San Tan Valley, AZ): holiday map data.
-// Map: public/skyline-holiday-v2.jpg (2022x1980), drawn from the HOA's tract plat at 2x.
+// Map: public/skyline-holiday-v3.jpg (2022x1980), drawn from the HOA's tract plat at 2x.
 // Lots: boxes detected on the plat (pixel x, y, width, height).
 // Lot addresses: house number + index into SKYLINE_STREETS for each lot, matched from OpenStreetMap addresses
 // (null where OpenStreetMap has none). The numbers are also printed on the map.
 // Streets: OpenStreetMap centerlines (c) OpenStreetMap contributors, fitted onto the plat's roads.
 // Geo: affine from (longitude + 111.59) * 1e5, (latitude - 33.17) * 1e5 to map pixels, fitted from those streets.
-export const SKYLINE_IMAGE = { src: '/skyline-holiday-v2.jpg', width: 2022, height: 1980 };
+export const SKYLINE_IMAGE = { src: '/skyline-holiday-v3.jpg', width: 2022, height: 1980 };
 export const SKYLINE_AFFINE = [[1.306707, -0.009941, -840.891786], [-0.006753, -1.332642, 2779.19703]];
 export const SKYLINE_BOUNDS = { low: { latitude: 33.17589, longitude: -111.58352 }, high: { latitude: 33.19082, longitude: -111.56793 } };
 export const SKYLINE_STREETS = ["N Boulder Creek Dr", "N Cobblestone Dr", "N Pebble Creek Dr", "N Quarry Hills Dr", "N Sandstone Dr", "N Slate Creek Dr", "N Stone Creek Dr", "N Stone Ridge Dr", "W Agrarian Hills Dr", "W Cedar Tree Dr", "W Desert Basin Dr", "W Desert Canyon Dr", "W Desert Glen Dr", "W Desert Hills Dr", "W Desert Hollow Dr", "W Desert Mountain Dr", "W Desert Seasons Dr", "W Desert Sky Dr", "W Desert Valley Dr", "W Foot Hills Dr", "W Fruit Tree Ln", "W Green Tree Dr", "W Mesquite Tree Ln", "W Oak Tree Ln", "W Saguaro Ln", "W San Tan Hills Dr", "W Vineyard Plains Dr"];
