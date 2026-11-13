@@ -4,11 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { isAuthed } from '@/lib/auth';
 import { clearTestData, deleteEntry, deleteVote, moveEntry, setEntryAward, setEntryHidden, setTestPhase, TEST_PHASES, type TestPhase } from '@/lib/holiday';
 import { validPct } from '@/lib/treatsGeo';
+import { communityOrDefault } from '@/lib/communities';
 
 const SIGNED_OUT = 'Signed out. Sign in on the liaison page again.';
 const refresh = () => {
-  revalidatePath('/holiday');
-  revalidatePath('/holiday/admin');
+  revalidatePath('/holiday', 'layout');
 };
 
 export async function moveHolidayEntry(id: number, x: number, y: number): Promise<string | null> {
@@ -42,17 +42,17 @@ export async function awardHolidayEntry(id: number, award: string): Promise<stri
 }
 
 /** Test mode: '' turns it off (real dates), or 'entry' | 'voting' | 'results' for a practice round. */
-export async function setHolidayTestMode(v: string): Promise<string | null> {
+export async function setHolidayTestMode(community: string, v: string): Promise<string | null> {
   if (!(await isAuthed())) return SIGNED_OUT;
   if (v && !(TEST_PHASES as string[]).includes(v)) return 'Unknown setting.';
-  await setTestPhase((v || null) as TestPhase | null);
+  await setTestPhase(communityOrDefault(community).slug, (v || null) as TestPhase | null);
   refresh();
   return null;
 }
 
-export async function clearHolidayTestData(): Promise<string | null> {
+export async function clearHolidayTestData(community: string): Promise<string | null> {
   if (!(await isAuthed())) return SIGNED_OUT;
-  await clearTestData();
+  await clearTestData(communityOrDefault(community).slug);
   refresh();
   return null;
 }

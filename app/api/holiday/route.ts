@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import { addEntry, contest, deleteOwnEntry, entriesFromDevice, knownStreet, MARKERS, type Marker } from '@/lib/holiday';
 import { validPct } from '@/lib/treatsGeo';
+import { communityOrDefault } from '@/lib/communities';
 import { clean, reporterHash } from '@/lib/util';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  const c = await contest();
-  if (c.phase !== 'entry') return NextResponse.json({ error: 'Entries are closed for this year.' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
+  const community = communityOrDefault(body.community).slug;
+  const c = await contest(community);
+  if (c.phase !== 'entry') return NextResponse.json({ error: 'Entries are closed for this year.' }, { status: 403 });
   const house_number = clean(body.house_number, 10);
-  const street = knownStreet(clean(body.street, 40));
+  const street = knownStreet(community, clean(body.street, 40));
   const marker: Marker = MARKERS.includes(body.marker) ? body.marker : 'tree';
   if (!validPct(body.x) || !validPct(body.y)) {
     return NextResponse.json({ error: 'Tap your home on the map first.' }, { status: 400 });
@@ -24,6 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too many entries from this device. Try again later.' }, { status: 429 });
   }
   const { entry, token } = await addEntry({
+    community,
     season: c.season,
     x: Math.round(body.x * 100) / 100,
     y: Math.round(body.y * 100) / 100,

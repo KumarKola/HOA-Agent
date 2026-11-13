@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import TreatMap, { type MapHouse } from '../treats/TreatMap';
-import { holidayMarker, Lights, Tree } from './HolidayMarkers';
-import { geoToMap, STREETS } from '@/lib/treatsGeo';
-import { lotAt, lotBoxes, type Box } from '@/lib/treatsLots';
-import { streetAt } from '@/lib/treatsStreets';
+import { holidayMarkerFor, Lights, Tree } from './HolidayMarkers';
+import { communityOrDefault } from '@/lib/communities';
+import type { Box } from '@/lib/treatsLots';
 
 // Same flow as the trick-or-treat page (tap your home, use your location, address lookup),
 // plus a choice of decoration and resident voting.
@@ -15,11 +14,6 @@ type Phase = 'entry' | 'between' | 'voting' | 'counting' | 'results';
 export type PublicEntry = { id: number; x: number; y: number; house_number: string; street: string; marker: Marker; note: string | null; award: string | null };
 export type PublicWinner = PublicEntry & { votes: number; rank: number };
 type Labels = { entryCloses: string; voteOpens: string; voteCloses: string; results: string };
-
-const snap = (x: number, y: number) => {
-  const l = lotAt(x, y);
-  return { x: Math.round(l.x * 100) / 100, y: Math.round(l.y * 100) / 100 };
-};
 
 // Phones with Precise Location off report a circle a mile or more wide; that's useless for picking a house.
 const APPROX_M = 150;
@@ -62,7 +56,6 @@ function deviceId(): string {
   return d;
 }
 
-const knownStreet = (v: string) => STREETS.find((st) => st.toLowerCase() === v.trim().toLowerCase()) || null;
 const addr = (h: { house_number: string; street: string }) => `${h.house_number} ${h.street}`;
 const PLACE = ['', '1st place', '2nd place', '3rd place'];
 const SHORT = ['', '1st', '2nd', '3rd'];
@@ -72,6 +65,7 @@ function MarkerIcon({ kind }: { kind: Marker }) {
 }
 
 export default function HolidayApp({
+  community,
   initial,
   phase,
   labels,
@@ -80,6 +74,8 @@ export default function HolidayApp({
   test = false,
   addressLookup = false,
 }: {
+  /** Which community's contest (see lib/communities). */
+  community: string;
   initial: PublicEntry[];
   phase: Phase;
   labels: Labels;
@@ -89,6 +85,15 @@ export default function HolidayApp({
   test?: boolean;
   addressLookup?: boolean;
 }) {
+  const cm = communityOrDefault(community);
+  const { streets: STREETS, lotAt, lotBoxes, streetAt, geoToMap } = cm.map;
+  const holidayMarker = useMemo(() => holidayMarkerFor(cm.map), [cm]);
+  const knownStreet = (v: string) => STREETS.find((st) => st.toLowerCase() === v.trim().toLowerCase()) || null;
+  const snap = (x: number, y: number) => {
+    const l = lotAt(x, y);
+    return { x: Math.round(l.x * 100) / 100, y: Math.round(l.y * 100) / 100 };
+  };
+  const C = `c=${cm.slug}`; // tells the address lookups which community's area to search
   const [entries, setEntries] = useState(initial);
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
@@ -116,7 +121,8 @@ export default function HolidayApp({
   const [deleteErr, setDeleteErr] = useState('');
 
   // Voting
-  const VOTE_KEY = `hd-vote-${season}`;
+  const VOTE_KEY = cm.slug === 'liberty' ? `hd-vote-${season}` : `hd-vote-${cm.slug}-${season}`;
+  const VOTER_KEY = cm.slug === 'liberty' ? 'hd-voter' : `hd-voter-${cm.slug}`;
   const [myVote, setMyVote] = useState<{ entryId: number; address: string } | null>(null);
   const [voteFor, setVoteFor] = useState<PublicEntry | null>(null);
   const [vNum, setVNum] = useState('');
@@ -128,12 +134,12 @@ export default function HolidayApp({
   useEffect(() => {
     setMine(load<Record<string, string>>('hd-mine', {}));
     setMyVote(load<{ entryId: number; address: string } | null>(VOTE_KEY, null));
-    const me = load<{ num: string; street: string } | null>('hd-voter', null);
+    const me = load<{ num: string; street: string } | null>(VOTER_KEY, null);
     if (me) {
       setVNum(me.num);
       setVStreet(me.street);
     }
-  }, [VOTE_KEY]);
+  }, [VOTE_KEY, VOTER_KEY]);
 
   // Google address search (only when the site has a Google Maps key)
   const [query, setQuery] = useState('');
@@ -152,7 +158,7 @@ export default function HolidayApp({
     const t = setTimeout(async () => {
       try {
         if (!session.current) newSession();
-        const r = await fetch(`/api/geo/suggest?q=${encodeURIComponent(query)}&s=${session.current}`, { signal: ctl.signal });
+        const r = await fetch(`/api/geo/suggest?q=${encodeURIComponent(query)}&s=${session.current}&${C}`, { signal: ctl.signal });
         const d = await r.json();
         setSuggestions(d.suggestions || []);
       } catch {
@@ -188,7 +194,7 @@ export default function HolidayApp({
       return st;
     });
     if (fix && addressLookup) {
-      fetch(`/api/geo/reverse?lat=${fix.lat}&lng=${fix.lng}`)
+      fetch(`/api/geo/reverse?lat=${fix.lat}&lng=${fix.lng}&${C}`)
         .then((r) => r.json())
         .then((d) => {
           if (d.address?.street) autoStreet.current = knownStreet(d.address.street) || d.address.street;
@@ -330,7 +336,7 @@ export default function HolidayApp({
       const res = await fetch('/api/holiday', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...pending, house_number: num.trim(), street: knownStreet(street), marker, note, name }),
+        body: JSON.stringify({ community: cm.slug, ...pending, house_number: num.trim(), street: knownStreet(street), marker, note, name }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
@@ -399,13 +405,13 @@ export default function HolidayApp({
       const res = await fetch('/api/holiday/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entryId: voteFor.id, house_number: vNum.trim(), street: vStreet, device: deviceId() }),
+        body: JSON.stringify({ community: cm.slug, entryId: voteFor.id, house_number: vNum.trim(), street: vStreet, device: deviceId() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not save your vote. Try again.');
       const v = { entryId: voteFor.id, address: data.address as string };
       save(VOTE_KEY, v);
-      save('hd-voter', { num: vNum.trim(), street: vStreet });
+      save(VOTER_KEY, { num: vNum.trim(), street: vStreet });
       setMyVote(v);
       setVoteOk(myVote && myVote.entryId !== voteFor.id ? `Vote changed to ${addr(voteFor)}.` : `Thanks! Your vote for ${addr(voteFor)} is in.`);
       setVoteFor(null);
@@ -442,7 +448,7 @@ export default function HolidayApp({
     const t = setTimeout(async () => {
       lastLookup.current = key;
       try {
-        const r = await fetch(`/api/geo/suggest?q=${encodeURIComponent(`${n} ${st}`)}`);
+        const r = await fetch(`/api/geo/suggest?q=${encodeURIComponent(`${n} ${st}`)}&${C}`);
         const d = await r.json();
         const hit = (d.suggestions || []).find((x: { main: string }) => x.main.startsWith(`${n} `));
         if (!hit) return setLookupMsg('Could not find that address on the map. Tap your home instead.');
@@ -466,7 +472,9 @@ export default function HolidayApp({
     <div className="ttWrap">
       <header className="ttSpread">
         <h1>
-          <small>Liberty community · Holidays {Math.abs(season)}</small>
+          <small>
+            {cm.name} · Holidays {Math.abs(season)}
+          </small>
           Holiday Decor Contest
         </h1>
         <p className="ttCount ttMuted">
@@ -577,7 +585,7 @@ export default function HolidayApp({
               </ul>
             </>
           )}
-          <p className="ttSmall ttMuted">Thank you to all {entries.length} homes for lighting up Liberty. Happy holidays!</p>
+          <p className="ttSmall ttMuted">Thank you to all {entries.length} homes for lighting up {cm.short}. Happy holidays!</p>
         </section>
       )}
 
@@ -614,8 +622,9 @@ export default function HolidayApp({
         </div>
         {gpsMsg && !adding && <p className="ttSmall ttMuted">{gpsMsg}</p>}
         <TreatMap
-          src="/holiday-map-v2.jpg"
-          alt="Liberty community map with the homes in the holiday decor contest"
+          src={cm.map.src}
+          alt={`${cm.short} community map with the homes in the holiday decor contest`}
+          geometry={cm.map}
           renderMarker={holidayMarker}
           pendingKind={marker}
           houses={markers}
@@ -777,7 +786,7 @@ export default function HolidayApp({
                   id="hd-find"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Start typing, e.g. 5838 S 23rd"
+                  placeholder="Start typing your house number and street"
                   autoComplete="off"
                   role="combobox"
                   aria-expanded={suggestions.length > 0}
@@ -814,7 +823,7 @@ export default function HolidayApp({
                   autoStreet.current = '';
                   setStreet(e.target.value);
                 }}
-                placeholder="S 23rd Dr"
+                placeholder={STREETS[0]}
               />
               <datalist id="hd-streets">
                 {STREETS.map((s) => (

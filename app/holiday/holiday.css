@@ -52,7 +52,8 @@
   padding: 8px 12px; cursor: pointer; font-size: 15px; min-height: 48px;
 }
 .tt .hdPick label.on { border-color: var(--tt-candy); background: rgba(242, 193, 78, 0.12); }
-.tt .hdPick input { position: absolute; opacity: 0; pointer-events: none; }
+.tt .hdPick label { position: relative; }
+.tt .hdPick input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .tt .hdPick label:has(input:focus-visible) { outline: 3px solid var(--tt-candy); outline-offset: 2px; }
 
 /* Winner badges on the map */

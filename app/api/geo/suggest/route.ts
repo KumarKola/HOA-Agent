@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { addressLookupEnabled, overGeoLimit, suggestAddresses } from '@/lib/google';
 import { clean, reporterHash } from '@/lib/util';
+import { communityOrDefault } from '@/lib/communities';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
   if (q.length < 2) return NextResponse.json({ suggestions: [] });
   if (overGeoLimit(await reporterHash())) return NextResponse.json({ suggestions: [] }, { status: 429 });
   try {
-    return NextResponse.json({ suggestions: await suggestAddresses(q, clean(u.searchParams.get('s'), 64) || undefined) });
+    return NextResponse.json({ suggestions: await suggestAddresses(q, clean(u.searchParams.get('s'), 64) || undefined, communityOrDefault(u.searchParams.get('c')).bounds) });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ suggestions: [] }, { status: 502 });

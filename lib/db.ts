@@ -88,6 +88,11 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS holiday_votes_device_idx ON holiday_votes (season, device_hash)`,
   // Organizer switches, e.g. the contest's test mode.
   `CREATE TABLE IF NOT EXISTS holiday_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+  // Several communities (HOAs) can run the contest; rows from before this are Liberty's.
+  `ALTER TABLE holiday_entries ADD COLUMN IF NOT EXISTS community TEXT NOT NULL DEFAULT 'liberty'`,
+  `ALTER TABLE holiday_votes ADD COLUMN IF NOT EXISTS community TEXT NOT NULL DEFAULT 'liberty'`,
+  `ALTER TABLE holiday_votes DROP CONSTRAINT IF EXISTS holiday_votes_season_voter_key_key`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS holiday_votes_one_per_address ON holiday_votes (community, season, voter_key)`,
 ];
 
 const g = globalThis as unknown as { __libertyDb?: Promise<Db> };

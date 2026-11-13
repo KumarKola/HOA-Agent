@@ -15,7 +15,7 @@ function partsFrom(components: { types: string[]; short: string }[]): AddressPar
   return { number: num, street };
 }
 
-export async function suggestAddresses(input: string, session?: string) {
+export async function suggestAddresses(input: string, session?: string, bounds: typeof BOUNDS = BOUNDS) {
   const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
     method: 'POST',
     headers: {
@@ -25,7 +25,7 @@ export async function suggestAddresses(input: string, session?: string) {
     },
     body: JSON.stringify({
       input,
-      locationRestriction: { rectangle: BOUNDS },
+      locationRestriction: { rectangle: bounds },
       includedRegionCodes: ['us'],
       ...(session ? { sessionToken: session } : {}),
     }),

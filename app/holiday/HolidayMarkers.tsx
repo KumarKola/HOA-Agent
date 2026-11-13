@@ -1,6 +1,5 @@
 // Markers for the holiday contest map: a decorated tree or a string of lights over each entered home.
 import type { Box } from '@/lib/treatsLots';
-import { MAP_IMAGE } from '@/lib/treatsGeo';
 
 export function Tree() {
   return (
@@ -42,20 +41,22 @@ export function Lights() {
   );
 }
 
-// Sizes in map-image pixels (lots are about 20 x 55).
+// Sizes in map-image pixels for Liberty (lots about 20 x 55); other maps scale them by their lot size.
 const TREE_TALL = 52;
 const TREE_SHORT = 34; // on the wide lots along 27th Ave and 23rd Dr
 const LIGHTS_LEN = 64;
-const LIGHTS_THICK = LIGHTS_LEN * (20 / 60);
 
-function lotPx(lot: Box) {
-  return { wPx: (lot.w / 100) * MAP_IMAGE.width, hPx: (lot.h / 100) * MAP_IMAGE.height };
+type Geo = { width: number; height: number; lotLong: number };
+
+function lotPx(lot: Box, g: Geo) {
+  return { wPx: (lot.w / 100) * g.width, hPx: (lot.h / 100) * g.height };
 }
 
 /** A tree standing upright in the lot. */
-function FitTree({ lot }: { lot: Box }) {
-  const { wPx, hPx } = lotPx(lot);
-  const h = hPx > wPx ? TREE_TALL : TREE_SHORT;
+function FitTree({ lot, g }: { lot: Box; g: Geo }) {
+  const { wPx, hPx } = lotPx(lot, g);
+  const k = g.lotLong / 55;
+  const h = (hPx > wPx ? TREE_TALL : TREE_SHORT) * k;
   const w = h * (24 / 44);
   return (
     <span className="ttCandyFit hdTree" style={{ width: `${(w / wPx) * 100}%`, height: `${(h / hPx) * 100}%`, transform: 'translate(-50%, -50%)' }}>
@@ -65,15 +66,16 @@ function FitTree({ lot }: { lot: Box }) {
 }
 
 /** A string of lights laid along the lot with a slight tilt, like the Halloween candies. */
-function FitLights({ lot }: { lot: Box }) {
-  const { wPx, hPx } = lotPx(lot);
+function FitLights({ lot, g }: { lot: Box; g: Geo }) {
+  const { wPx, hPx } = lotPx(lot, g);
   const tall = hPx > wPx;
+  const len = LIGHTS_LEN * (g.lotLong / 55), thick = len * (20 / 60);
   return (
     <span
       className="ttCandyFit hdLights"
       style={{
-        width: `${(LIGHTS_LEN / wPx) * 100}%`,
-        height: `${(LIGHTS_THICK / hPx) * 100}%`,
+        width: `${(len / wPx) * 100}%`,
+        height: `${(thick / hPx) * 100}%`,
         transform: `translate(-50%, -50%) rotate(${tall ? 80 : 10}deg)`,
       }}
     >
@@ -82,6 +84,9 @@ function FitLights({ lot }: { lot: Box }) {
   );
 }
 
-export function holidayMarker(lot: Box, kind?: string) {
-  return kind === 'lights' ? <FitLights lot={lot} /> : <FitTree lot={lot} />;
+/** Marker drawer for a map: a tree or lights sized to that map's lots. */
+export function holidayMarkerFor(g: Geo) {
+  return function holidayMarker(lot: Box, kind?: string) {
+    return kind === 'lights' ? <FitLights lot={lot} g={g} /> : <FitTree lot={lot} g={g} />;
+  };
 }

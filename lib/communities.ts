@@ -1,0 +1,71 @@
+// Communities that can run the holiday decor contest. Browser-safe: pages pass the slug, components look it up here.
+// Liberty (the default, at /holiday) uses its hand-tuned map modules; others are built with lib/mapKit.
+import { makeAffineGeo, makeLots, makeStreetAt, type MapDef } from './mapKit';
+import { SKYLINE_AFFINE, SKYLINE_BOUNDS, SKYLINE_IMAGE, SKYLINE_LOTS, SKYLINE_SEGMENTS, SKYLINE_STREETS } from './skylineMap';
+import { geoToMap, MAP_IMAGE, STREETS } from './treatsGeo';
+import { lotAt, lotBoxes } from './treatsLots';
+import { streetAt } from './treatsStreets';
+
+export type GeoBounds = { low: { latitude: number; longitude: number }; high: { latitude: number; longitude: number } };
+
+export type Community = {
+  slug: string;
+  /** Shown in headings, e.g. "Liberty community". */
+  name: string;
+  /** Short name for sentences ("lighting up Liberty"). */
+  short: string;
+  /** Public contest page. */
+  path: string;
+  map: MapDef;
+  /** Area for Google address suggestions and reverse lookups. */
+  bounds: GeoBounds;
+};
+
+const liberty: Community = {
+  slug: 'liberty',
+  name: 'Liberty community',
+  short: 'Liberty',
+  path: '/holiday',
+  map: {
+    src: '/holiday-map-v2.jpg',
+    width: MAP_IMAGE.width,
+    height: MAP_IMAGE.height,
+    streets: STREETS,
+    lotAt,
+    lotBoxes,
+    streetAt,
+    geoToMap,
+    lotLong: 55,
+  },
+  // Roeser Rd to Southern Ave and 27th Ave to 23rd Ave, with a small margin.
+  bounds: { low: { latitude: 33.3917, longitude: -112.1168 }, high: { latitude: 33.4, longitude: -112.1073 } },
+};
+
+const skyLots = makeLots(SKYLINE_LOTS, SKYLINE_IMAGE.width, SKYLINE_IMAGE.height);
+const skyline: Community = {
+  slug: 'skyline-ranch-ii',
+  name: 'Skyline Ranch II · San Tan Valley',
+  short: 'Skyline Ranch II',
+  path: '/holiday/skyline-ranch-ii',
+  map: {
+    src: SKYLINE_IMAGE.src,
+    width: SKYLINE_IMAGE.width,
+    height: SKYLINE_IMAGE.height,
+    streets: SKYLINE_STREETS,
+    lotAt: skyLots.lotAt,
+    lotBoxes: skyLots.lotBoxes,
+    streetAt: makeStreetAt(SKYLINE_SEGMENTS, SKYLINE_IMAGE.width, SKYLINE_IMAGE.height),
+    geoToMap: makeAffineGeo(SKYLINE_AFFINE, SKYLINE_IMAGE.width, SKYLINE_IMAGE.height),
+    lotLong: skyLots.lotLong,
+  },
+  bounds: SKYLINE_BOUNDS,
+};
+
+export const COMMUNITIES: Record<string, Community> = { [liberty.slug]: liberty, [skyline.slug]: skyline };
+export const DEFAULT_COMMUNITY = liberty.slug;
+
+export function getCommunity(slug: string | null | undefined): Community | null {
+  return (slug && COMMUNITIES[slug]) || null;
+}
+/** Unknown or missing → Liberty, so older links and requests keep working. */
+export const communityOrDefault = (slug: unknown): Community => getCommunity(typeof slug === 'string' ? slug : null) || liberty;

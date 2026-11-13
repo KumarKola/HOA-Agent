@@ -41,6 +41,7 @@ export default function TreatMap({
   alt = 'Liberty community map with streets and lots',
   renderMarker,
   pendingKind,
+  geometry,
 }: {
   houses: MapHouse[];
   zoom: number;
@@ -60,7 +61,11 @@ export default function TreatMap({
   /** Draws a house's marker in its lot; the candy when not given. */
   renderMarker?: (lot: Box, kind?: string) => React.ReactNode;
   pendingKind?: string;
+  /** Another community's picture size and lot snapping (Liberty's when not given). */
+  geometry?: { width: number; height: number; lotAt: typeof lotAt };
 }) {
+  const snapLot = geometry?.lotAt ?? lotAt;
+  const imgW = geometry?.width ?? MAP_IMAGE.width, imgH = geometry?.height ?? MAP_IMAGE.height;
   const drawMarker = renderMarker ?? ((lot: Box) => <FitCandy lot={lot} />);
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -86,14 +91,14 @@ export default function TreatMap({
       <div className={`ttMapInner${placing ? ' placing' : ''}`} style={{ width: `${zoom * 100}%` }} onClick={handle}>
         <img
           src={src}
-          width={MAP_IMAGE.width}
-          height={MAP_IMAGE.height}
+          width={imgW}
+          height={imgH}
           alt={alt}
           draggable={false}
         />
         {highlight?.map((b, i) => <div key={`hl${i}`} className="ttHl" style={boxStyle(b)} />)}
         {houses.map((h) => {
-          const lot = lotAt(h.x, h.y);
+          const lot = snapLot(h.x, h.y);
           return (
             <div key={h.id} className={`ttLot${selectedId === h.id ? ' sel' : ''}${h.dim ? ' dim' : ''}`} style={boxStyle(lot)}>
               {drawMarker(lot, h.kind)}
@@ -112,8 +117,8 @@ export default function TreatMap({
           );
         })}
         {pending && (
-          <div className="ttLot pending" style={boxStyle(lotAt(pending.x, pending.y))}>
-            {drawMarker(lotAt(pending.x, pending.y), pendingKind)}
+          <div className="ttLot pending" style={boxStyle(snapLot(pending.x, pending.y))}>
+            {drawMarker(snapLot(pending.x, pending.y), pendingKind)}
           </div>
         )}
         {you && <div className="ttYou" style={{ left: `${you.x}%`, top: `${you.y}%` }} aria-label="You are here" />}

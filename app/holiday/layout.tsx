@@ -2,8 +2,8 @@ import '../treats/treats.css';
 import './holiday.css';
 
 export const metadata = {
-  title: 'Holiday Decor Contest · Liberty',
-  description: 'Enter your decorated home on the Liberty community map, then vote for your favorite.',
+  title: 'Holiday Decor Contest',
+  description: 'Enter your decorated home on the community map, then vote for your favorite.',
 };
 
 export const viewport = { themeColor: '#10241c' };

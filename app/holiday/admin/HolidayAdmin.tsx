@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import TreatMap from '../../treats/TreatMap';
-import { holidayMarker } from '../HolidayMarkers';
+import { holidayMarkerFor } from '../HolidayMarkers';
 import { awardHolidayEntry, clearHolidayTestData, deleteHolidayEntry, hideHolidayEntry, moveHolidayEntry, removeHolidayVote, setHolidayTestMode } from './actions';
-import { lotAt } from '@/lib/treatsLots';
+import { communityOrDefault } from '@/lib/communities';
 
 type Row = {
   id: number;
@@ -36,6 +36,7 @@ const PHASE: Record<string, string> = {
 };
 
 export default function HolidayAdmin({
+  community,
   entries,
   votes,
   phase,
@@ -44,6 +45,7 @@ export default function HolidayAdmin({
   labels,
   season,
 }: {
+  community: string;
   entries: Row[];
   votes: Vote[];
   phase: string;
@@ -52,6 +54,9 @@ export default function HolidayAdmin({
   labels: { entryCloses: string; voteOpens: string; voteCloses: string; results: string };
   season: number;
 }) {
+  const cm = communityOrDefault(community);
+  const lotAt = cm.map.lotAt;
+  const holidayMarker = useMemo(() => holidayMarkerFor(cm.map), [cm]);
   const [rows, setRows] = useState(entries);
   const [voteRows, setVoteRows] = useState(votes);
   const [moving, setMoving] = useState<number | null>(null);
@@ -120,7 +125,7 @@ export default function HolidayAdmin({
 
   function setTest(v: '' | 'entry' | 'voting' | 'results') {
     start(async () => {
-      const e = await setHolidayTestMode(v);
+      const e = await setHolidayTestMode(cm.slug, v);
       if (e) return setMsg(e);
       setMsg(v ? `Test mode: everyone now sees the ${TEST_NAME[v]} screen.` : 'Test mode off. The site follows the real contest dates again.');
       router.refresh();
@@ -128,7 +133,7 @@ export default function HolidayAdmin({
   }
   function clearTest() {
     start(async () => {
-      const e = await clearHolidayTestData();
+      const e = await clearHolidayTestData(cm.slug);
       if (e) return setMsg(e);
       setConfirmClear(false);
       setRows([]);
@@ -144,10 +149,12 @@ export default function HolidayAdmin({
     <div className="ttWrap">
       <header className="ttSpread">
         <h1>
-          <small>Holiday contest {season} · Organizer</small>
+          <small>
+            {cm.short} holiday contest {season} · Organizer
+          </small>
           {visible.length} {visible.length === 1 ? 'home' : 'homes'} · {voteRows.length} {voteRows.length === 1 ? 'vote' : 'votes'}
         </h1>
-        <a href="/holiday">Open the public page</a>
+        <a href={cm.path}>Open the public page</a>
       </header>
       <section className="ttCard" aria-labelledby="hd-test">
         <h2 id="hd-test">Test mode</h2>
@@ -202,8 +209,9 @@ export default function HolidayAdmin({
         </button>
       </div>
       <TreatMap
-        src="/holiday-map-v2.jpg"
-        alt="Liberty community map with the homes in the holiday decor contest"
+        src={cm.map.src}
+        alt={`${cm.short} community map with the homes in the holiday decor contest`}
+        geometry={cm.map}
         renderMarker={holidayMarker}
         houses={visible.map((r) => ({ id: r.id, x: r.x, y: r.y, kind: r.marker, label: addr(r), dim: moving !== null && r.id !== moving }))}
         zoom={zoom}
