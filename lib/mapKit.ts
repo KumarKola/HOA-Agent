@@ -15,6 +15,8 @@ export type MapDef = {
   geoToMap: (lat: number, lng: number) => { x: number; y: number } | null;
   /** Typical long side of a lot in map pixels; markers are sized from it. */
   lotLong: number;
+  /** The address of the lot at a point, where the map knows it (fills the form when someone taps their home). */
+  addressAt?: (xPct: number, yPct: number) => { number: string; street: string } | null;
 };
 
 type Px = [number, number, number, number];
@@ -23,14 +25,19 @@ export function makeLots(lots: Px[], W: number, H: number) {
   const pct = (x: number, y: number, w: number, h: number): Box => ({ x: ((x + w / 2) / W) * 100, y: ((y + h / 2) / H) * 100, w: (w / W) * 100, h: (h / H) * 100 });
   const sorted = lots.map((l) => Math.max(l[2], l[3])).sort((a, b) => a - b);
   const lotLong = sorted[Math.floor(sorted.length / 2)] || 40;
+  /** Index of the smallest lot box containing the point (curved rows make neighbouring boxes overlap), or -1. */
+  function lotIndexAt(xPct: number, yPct: number): number {
+    const px = (xPct / 100) * W, py = (yPct / 100) * H;
+    let hit = -1;
+    lots.forEach((l, i) => {
+      if (px >= l[0] - 1 && px <= l[0] + l[2] + 1 && py >= l[1] - 1 && py <= l[1] + l[3] + 1 && (hit < 0 || l[2] * l[3] < lots[hit][2] * lots[hit][3])) hit = i;
+    });
+    return hit;
+  }
   function lotAt(xPct: number, yPct: number): Box & { snapped: boolean } {
     const px = (xPct / 100) * W, py = (yPct / 100) * H;
-    // smallest box containing the point (curved rows make neighbouring boxes overlap)
-    let hit: Px | null = null;
-    for (const l of lots) {
-      if (px >= l[0] - 1 && px <= l[0] + l[2] + 1 && py >= l[1] - 1 && py <= l[1] + l[3] + 1 && (!hit || l[2] * l[3] < hit[2] * hit[3])) hit = l;
-    }
-    if (hit) return { ...pct(...hit), snapped: true };
+    const i = lotIndexAt(xPct, yPct);
+    if (i >= 0) return { ...pct(...lots[i]), snapped: true };
     let best: Px | null = null, bd = Infinity;
     for (const l of lots) {
       const d = (l[0] + l[2] / 2 - px) ** 2 + (l[1] + l[3] / 2 - py) ** 2;
@@ -39,7 +46,7 @@ export function makeLots(lots: Px[], W: number, H: number) {
     const [w, h] = best && bd < (lotLong * 1.4) ** 2 ? [best[2], best[3]] : [lotLong * 0.45, lotLong * 0.45];
     return { x: xPct, y: yPct, w: (w / W) * 100, h: (h / H) * 100, snapped: false };
   }
-  return { lotAt, lotBoxes: () => lots.map((l) => pct(...l)), lotLong };
+  return { lotAt, lotIndexAt, lotBoxes: () => lots.map((l) => pct(...l)), lotLong };
 }
 
 /** Nearest street to a point; being past the end of a street (at a corner) counts as farther, as on the Liberty map. */

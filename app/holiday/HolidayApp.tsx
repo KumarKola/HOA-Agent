@@ -180,19 +180,23 @@ export default function HolidayApp({
 
   // Street the page filled in itself; replaced on the next placement unless the entrant typed their own.
   const autoStreet = useRef('');
+  const autoNum = useRef('');
 
   function placeAt(xPct: number, yPct: number, fix?: { lat: number; lng: number } | null) {
     const pt = snap(xPct, yPct);
     setPending(pt);
     setZoom((z) => Math.max(z, 2));
     setErr('');
+    // Maps that know each lot's address fill the house number too; otherwise only the street is suggested.
+    const known = cm.map.addressAt?.(pt.x, pt.y) ?? null;
     setStreet((cur) => {
       if (cur && cur !== autoStreet.current) return cur;
-      const st = streetAt(pt.x, pt.y);
+      const st = known?.street ?? streetAt(pt.x, pt.y);
       autoStreet.current = st;
-      setLookupMsg('Street filled from the map. Change it if it is wrong.');
+      setLookupMsg(known ? 'Address filled from the map. Check it is yours.' : 'Street filled from the map. Change it if it is wrong.');
       return st;
     });
+    if (known) setNum((cur) => (cur && cur !== autoNum.current ? cur : (autoNum.current = known.number)));
     if (fix && addressLookup) {
       fetch(`/api/geo/reverse?lat=${fix.lat}&lng=${fix.lng}&${C}`)
         .then((r) => r.json())

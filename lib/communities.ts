@@ -1,7 +1,7 @@
 // Communities that can run the holiday decor contest. Browser-safe: pages pass the slug, components look it up here.
 // Liberty (the default, at /holiday) uses its hand-tuned map modules; others are built with lib/mapKit.
 import { makeAffineGeo, makeLots, makeStreetAt, type MapDef } from './mapKit';
-import { SKYLINE_AFFINE, SKYLINE_BOUNDS, SKYLINE_IMAGE, SKYLINE_LOTS, SKYLINE_SEGMENTS, SKYLINE_STREETS } from './skylineMap';
+import { SKYLINE_AFFINE, SKYLINE_BOUNDS, SKYLINE_IMAGE, SKYLINE_LOT_ADDR, SKYLINE_LOTS, SKYLINE_SEGMENTS, SKYLINE_STREETS } from './skylineMap';
 import { geoToMap, MAP_IMAGE, STREETS } from './treatsGeo';
 import { lotAt, lotBoxes } from './treatsLots';
 import { streetAt } from './treatsStreets';
@@ -57,6 +57,10 @@ const skyline: Community = {
     streetAt: makeStreetAt(SKYLINE_SEGMENTS, SKYLINE_IMAGE.width, SKYLINE_IMAGE.height),
     geoToMap: makeAffineGeo(SKYLINE_AFFINE, SKYLINE_IMAGE.width, SKYLINE_IMAGE.height),
     lotLong: skyLots.lotLong,
+    addressAt: (x, y) => {
+      const a = SKYLINE_LOT_ADDR[skyLots.lotIndexAt(x, y)];
+      return a ? { number: String(a[0]), street: SKYLINE_STREETS[a[1]] } : null;
+    },
   },
   bounds: SKYLINE_BOUNDS,
 };
