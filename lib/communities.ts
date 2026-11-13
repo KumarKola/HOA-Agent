@@ -19,6 +19,8 @@ export type Community = {
   map: MapDef;
   /** Area for Google address suggestions and reverse lookups. */
   bounds: GeoBounds;
+  /** Contest days (MM-DD, Arizona time) that differ from the defaults: enter until 12-10, vote 12-11 to 12-22, winners 12-23. */
+  dates?: Partial<Record<'entryCloses' | 'voteOpens' | 'voteCloses' | 'results', string>>;
 };
 
 const liberty: Community = {
@@ -63,6 +65,8 @@ const skyline: Community = {
     },
   },
   bounds: SKYLINE_BOUNDS,
+  // Their social committee: voting ends Dec 15, winners the next day.
+  dates: { voteCloses: '12-15', results: '12-16' },
 };
 
 export const COMMUNITIES: Record<string, Community> = { [liberty.slug]: liberty, [skyline.slug]: skyline };

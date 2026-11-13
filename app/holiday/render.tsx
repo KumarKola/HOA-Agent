@@ -33,7 +33,7 @@ export async function ContestPage({ slug }: { slug: string }) {
       community={cm.slug}
       initial={entries}
       phase={p}
-      labels={scheduleLabels()}
+      labels={scheduleLabels(cm.slug)}
       season={c.season}
       test={!!c.test}
       winners={winners}
@@ -68,9 +68,9 @@ export async function OrganizerPage({ slug }: { slug: string }) {
       entries={entries}
       votes={votes}
       phase={c.phase}
-      realPhase={phase()}
+      realPhase={phase(cm.slug)}
       test={c.test}
-      labels={scheduleLabels()}
+      labels={scheduleLabels(cm.slug)}
       season={c.year}
     />
   );

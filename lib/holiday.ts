@@ -54,13 +54,20 @@ export function season(): number {
   return m === 1 ? y - 1 : y;
 }
 
-/** Contest dates (Arizona time). Defaults: enter until Dec 10, vote Dec 11–22, winners Dec 23. */
-export function schedule() {
+/**
+ * Contest dates (Arizona time). Defaults: enter until Dec 10, vote Dec 11–22, winners Dec 23.
+ * Liberty's can be changed with the HOLIDAY_* settings; other communities set theirs in lib/communities.
+ */
+export function schedule(community = 'liberty') {
   const y = season();
-  const entryCloses = day(process.env.HOLIDAY_ENTRY_CLOSES, `${y}-12-10`);
-  const voteOpens = day(process.env.HOLIDAY_VOTE_OPENS, `${y}-12-11`);
-  const voteCloses = day(process.env.HOLIDAY_VOTE_CLOSES, `${y}-12-22`);
-  const results = day(process.env.HOLIDAY_RESULTS, `${y}-12-23`);
+  const own = communityOrDefault(community).dates || {};
+  const lib = community === 'liberty';
+  const pick = (env: string | undefined, mmdd: string | undefined, fallback: string) =>
+    lib ? day(env, `${y}-${fallback}`) : `${y}-${mmdd && /^\d{2}-\d{2}$/.test(mmdd) ? mmdd : fallback}`;
+  const entryCloses = pick(process.env.HOLIDAY_ENTRY_CLOSES, own.entryCloses, '12-10');
+  const voteOpens = pick(process.env.HOLIDAY_VOTE_OPENS, own.voteOpens, '12-11');
+  const voteCloses = pick(process.env.HOLIDAY_VOTE_CLOSES, own.voteCloses, '12-22');
+  const results = pick(process.env.HOLIDAY_RESULTS, own.results, '12-23');
   return {
     entryClosesAt: new Date(`${entryCloses}T23:59:59${TZ}`),
     voteOpensAt: new Date(`${voteOpens}T00:00:00${TZ}`),
@@ -97,7 +104,7 @@ export async function setTestPhase(community: string, v: TestPhase | null) {
 export async function contest(community: string): Promise<{ season: number; phase: Phase; test: TestPhase | null; year: number }> {
   const year = season();
   const t = await testPhase(community);
-  return t ? { season: -year, phase: t, test: t, year } : { season: year, phase: phase(), test: null, year };
+  return t ? { season: -year, phase: t, test: t, year } : { season: year, phase: phase(community), test: null, year };
 }
 
 /** Practice homes and votes go away; the real contest is untouched. */
@@ -105,8 +112,8 @@ export async function clearTestData(community: string) {
   await q(`DELETE FROM holiday_entries WHERE community = $1 AND season < 0`, [community]);
 }
 
-export function phase(at: Date = now()): Phase {
-  const s = schedule();
+export function phase(community = 'liberty', at: Date = now()): Phase {
+  const s = schedule(community);
   const t = at.getTime();
   if (t <= s.entryClosesAt.getTime()) return 'entry';
   if (t < s.voteOpensAt.getTime()) return 'between';
@@ -116,8 +123,8 @@ export function phase(at: Date = now()): Phase {
 }
 
 const dayFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Phoenix', month: 'short', day: 'numeric' });
-export function scheduleLabels() {
-  const s = schedule();
+export function scheduleLabels(community = 'liberty') {
+  const s = schedule(community);
   return {
     entryCloses: dayFmt.format(s.entryClosesAt),
     voteOpens: dayFmt.format(s.voteOpensAt),
